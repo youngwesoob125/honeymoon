@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="신혼여행">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F6F8FC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1733" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="noindex,nofollow">
+<title>우리 신혼여행</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F6F8FC; --card:#FFFFFF; --ink:#1C2440; --soft:#5D6684; --line:#DDE3F0;
+  --azul:#2353B8; --azul-2:#E5ECFB; --tram:#FFC93C; --tram-2:#FFF4D1;
+  --naranja:#E8692A; --naranja-2:#FDE7DA; --oliva:#4F8A35; --oliva-2:#E3F1DA;
+  --dot:rgba(35,83,184,.09);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F1733; --card:#18224A; --ink:#ECEFFA; --soft:#A2ABCB; --line:#2A3770;
+    --azul:#8EA9FF; --azul-2:#22306A; --tram:#FFD45C; --tram-2:#3B3216;
+    --naranja:#FF9A5A; --naranja-2:#3E2518; --oliva:#9BD07A; --oliva-2:#1F3420;
+    --dot:rgba(142,169,255,.10);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F1733; --card:#18224A; --ink:#ECEFFA; --soft:#A2ABCB; --line:#2A3770;
+  --azul:#8EA9FF; --azul-2:#22306A; --tram:#FFD45C; --tram-2:#3B3216;
+  --naranja:#FF9A5A; --naranja-2:#3E2518; --oliva:#9BD07A; --oliva-2:#1F3420;
+  --dot:rgba(142,169,255,.10);
+}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;min-height:100%;color:var(--ink);font-family:"Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",sans-serif;font-size:15.5px;line-height:1.6;
+  background-color:var(--paper);background-image:radial-gradient(var(--dot) 1.2px,transparent 1.2px);background-size:18px 18px;-webkit-text-size-adjust:100%}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2.5px solid var(--azul);outline-offset:2px;border-radius:6px}
+.wrap{max-width:640px;margin:0 auto;padding:14px 16px calc(96px + env(safe-area-inset-bottom,0px))}
+.disp{font-family:"Jua","Gowun Dodum",sans-serif;font-weight:400;letter-spacing:-.2px}
+h2{font-family:"Jua",sans-serif;font-weight:400;font-size:21px;margin:26px 0 8px;display:flex;align-items:center;gap:8px}
+h2 .em{font-size:20px}
+.hint{color:var(--soft);font-size:13.5px;margin:-4px 0 10px}
+.empty{color:var(--soft);background:var(--card);border:1.5px dashed var(--line);border-radius:14px;padding:14px;font-size:14px}
+[hidden]{display:none!important}
+
+/* 상단 */
+.top{display:flex;justify-content:space-between;align-items:center;padding:4px 2px 10px}
+.top .name{font-family:"Jua",sans-serif;font-size:20px;color:var(--azul)}
+.top .upd{font-size:12.5px;color:var(--soft);text-align:right}
+
+/* 티켓 히어로 */
+.ticket{position:relative;display:grid;grid-template-columns:1fr 92px;background:var(--card);border-radius:18px;overflow:hidden;
+  box-shadow:0 2px 0 var(--line)}
+.ticket .main{padding:16px 16px 14px;border-right:2px dashed var(--line);position:relative}
+.ticket .main::before,.ticket .main::after{content:"";position:absolute;right:-11px;width:20px;height:20px;border-radius:50%;background:var(--paper)}
+.ticket .main::before{top:-10px}.ticket .main::after{bottom:-10px}
+.t-route{display:flex;align-items:center;gap:10px;font-family:"Jua",sans-serif}
+.t-code{font-size:34px;line-height:1;color:var(--azul)}
+.t-city{font-size:13px;color:var(--soft);font-family:"Gowun Dodum",sans-serif}
+.t-plane{font-size:22px;flex:0 0 auto}
+.t-meta{margin-top:10px;font-size:14px;color:var(--soft)}
+.t-meta b{color:var(--ink);font-weight:400;font-family:"Jua",sans-serif;font-size:15px}
+.stub{display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--tram);color:#3A2A00;padding:10px 6px;text-align:center}
+.stub .n{font-family:"Jua",sans-serif;font-size:34px;line-height:1}
+.stub .l{font-size:12.5px;margin-top:4px}
+.today .stub{background:var(--naranja);color:#fff}
+.today-list{margin:8px 0 0;padding-left:18px;font-size:14.5px}
+.today-list li{margin:2px 0}
+
+/* 메모 브리핑 */
+.memo{background:var(--tram-2);border-radius:4px 16px 16px 16px;padding:13px 15px;position:relative;box-shadow:0 2px 0 rgba(0,0,0,.04)}
+.memo::before{content:"";position:absolute;top:-9px;left:22px;width:54px;height:18px;background:rgba(255,201,60,.55);transform:rotate(-3deg);border-radius:2px}
+.memo .d{font-size:12.5px;color:var(--soft)}
+.memo h3{font-family:"Jua",sans-serif;font-weight:400;font-size:18px;margin:2px 0 6px;line-height:1.35}
+.memo ul{margin:0;padding-left:18px;font-size:14.5px}
+.memo li{margin:3px 0}
+
+/* 카드 공통 */
+.card{background:var(--card);border-radius:16px;padding:12px 14px;margin:8px 0;box-shadow:0 2px 0 var(--line)}
+.prop{border:2px solid var(--azul-2)}
+.prop.req{border-color:var(--naranja)}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.chip{font-size:12.5px;padding:2px 10px;border-radius:999px;white-space:nowrap;font-weight:700}
+.chip.blue{background:var(--azul-2);color:var(--azul)}
+.chip.ora{background:var(--naranja-2);color:var(--naranja)}
+.chip.ok{background:var(--oliva-2);color:var(--oliva)}
+.chip.mute{background:var(--line);color:var(--soft)}
+.btn{border:2px solid var(--azul);background:transparent;color:var(--azul);border-radius:12px;padding:7px 14px;cursor:pointer;font-family:"Jua",sans-serif;font-size:15px}
+.btn.fill{background:var(--azul);color:var(--card)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.small{font-size:13px;color:var(--soft)}
+
+/* 도시 스탬프 */
+.stamps{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 10px;scroll-snap-type:x mandatory}
+.stamp{flex:0 0 auto;scroll-snap-align:start;min-width:104px;padding:12px 10px 10px;background:var(--card);border-radius:10px;text-align:center;cursor:pointer;border:0;
+  outline:2px dashed var(--azul);outline-offset:-6px;position:relative}
+.stamp .c{font-family:"Jua",sans-serif;font-size:18px;color:var(--azul);display:block}
+.stamp .dt{font-size:12px;color:var(--soft);display:block}
+.stamp .h{font-size:12px;display:block;margin-top:4px}
+.stamp .h.ok{color:var(--oliva)}.stamp .h.no{color:var(--naranja)}
+.stamp.now{background:var(--tram-2)}
+.edit{background:var(--card);border:2px solid var(--naranja);border-radius:14px;padding:12px 14px;margin:4px 0 6px}
+.edit label{display:block;font-size:13.5px;color:var(--soft);margin:6px 0 3px}
+.inp{width:100%;background:var(--paper);border:2px solid var(--line);border-radius:10px;padding:9px 11px}
+.chkrow{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:14.5px}
+
+/* 할 일 */
+.task{display:grid;grid-template-columns:32px 1fr;gap:2px 10px;align-items:start;padding:11px 0;border-bottom:1.5px dashed var(--line)}
+.task:last-child{border-bottom:0}
+.chk{width:28px;height:28px;border:2.5px solid var(--azul);border-radius:9px;background:transparent;cursor:pointer;display:grid;place-items:center;padding:0}
+.chk[aria-checked="true"]{background:var(--oliva);border-color:var(--oliva)}
+.chk[aria-checked="true"]::after{content:"";width:7px;height:13px;border:solid #fff;border-width:0 3px 3px 0;transform:translateY(-1px) rotate(45deg)}
+.chk:disabled{cursor:not-allowed;opacity:.55}
+.tt{font-size:15px}
+.task.done .tt{color:var(--soft);text-decoration:line-through}
+.tm{grid-column:2;font-size:13px;color:var(--soft);display:flex;flex-wrap:wrap;gap:3px 10px}
+.due.soon{color:var(--naranja);font-weight:700}.due.late{color:#C62E2E;font-weight:700}
+.pp{color:var(--azul);font-weight:700}.who{color:var(--oliva)}
+.month{font-family:"Jua",sans-serif;font-size:16px;color:var(--soft);margin:18px 0 4px}
+details.fold{background:var(--card);border-radius:16px;margin:10px 0;padding:0 14px;box-shadow:0 2px 0 var(--line)}
+details.fold summary{cursor:pointer;padding:12px 0;font-family:"Jua",sans-serif;font-size:17px;list-style:none}
+details.fold summary::-webkit-details-marker{display:none}
+details.fold summary::after{content:"＋";float:right;color:var(--soft)}
+details.fold[open] summary::after{content:"－"}
+
+/* 일정 엽서 */
+.day{background:var(--card);border-radius:16px;margin:12px 0;overflow:hidden;box-shadow:0 2px 0 var(--line)}
+.day-h{display:flex;gap:12px;align-items:center;padding:12px 14px;cursor:pointer;width:100%;border:0;background:transparent;text-align:left}
+.dbadge{flex:0 0 auto;width:54px;height:58px;border-radius:12px;background:var(--azul-2);color:var(--azul);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:"Jua",sans-serif;line-height:1.05}
+.dbadge .m{font-size:12px}.dbadge .dd{font-size:22px}.dbadge .w{font-size:12px}
+.day.rest .dbadge{background:var(--oliva-2);color:var(--oliva)}
+.day.today{outline:3px solid var(--naranja)}
+.day.today .dbadge{background:var(--naranja);color:#fff}
+.dh-txt{flex:1;min-width:0}
+.dh-city{font-family:"Jua",sans-serif;font-size:17px;display:block}
+.dh-head{font-size:13.5px;color:var(--soft);display:block}
+.wchip{flex:0 0 auto;font-size:12.5px;background:var(--tram-2);border-radius:10px;padding:4px 8px;text-align:center;line-height:1.3}
+.day-b{padding:0 14px 14px}
+.day-b ul{margin:0;padding-left:18px}
+.day-b li{margin:3px 0}
+.dnote{font-size:13px;color:var(--soft);margin-top:8px;border-top:1.5px dashed var(--line);padding-top:8px}
+.pchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pchip{font-size:13px;text-decoration:none;color:var(--azul);background:var(--azul-2);border-radius:999px;padding:4px 10px}
+.pchip:hover{text-decoration:underline}
+
+/* 지도 */
+.mapbox{background:var(--card);border-radius:18px;padding:8px;box-shadow:0 2px 0 var(--line)}
+.mapbox svg{display:block;width:100%;height:auto}
+.land{fill:var(--azul-2);stroke:var(--azul);stroke-width:2;stroke-linejoin:round}
+.border{fill:none;stroke:var(--azul);stroke-width:1.5;stroke-dasharray:4 5;opacity:.6}
+.leg{fill:none;stroke:var(--naranja);stroke-width:3.5;stroke-linecap:round}
+.leg.fly{stroke-dasharray:2 9}
+.pin{cursor:pointer}
+.pin circle.o{fill:var(--card);stroke:var(--azul);stroke-width:3}
+.pin.sel circle.o{fill:var(--tram);stroke:var(--naranja)}
+.pin text.n{font-family:"Jua",sans-serif;font-size:17px;fill:var(--azul);text-anchor:middle;dominant-baseline:central}
+.pin text.lb{font-family:"Jua",sans-serif;font-size:19px;fill:var(--ink);paint-order:stroke;stroke:var(--card);stroke-width:5px;stroke-linejoin:round}
+.dpin circle{fill:var(--naranja);stroke:var(--card);stroke-width:2.5}
+.dpin text{font-size:15px;fill:var(--soft);font-family:"Gowun Dodum",sans-serif;paint-order:stroke;stroke:var(--card);stroke-width:4px}
+.sea{font-family:"Jua",sans-serif;fill:var(--soft);font-size:18px;opacity:.7}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--soft);padding:6px 8px 2px}
+.legend i{display:inline-block;width:26px;height:0;border-top:3.5px solid var(--naranja);vertical-align:middle;margin-right:5px}
+.legend i.f{border-top-style:dotted}
+.mlink{display:inline-block;margin-top:10px;text-decoration:none}
+
+/* 추천 */
+.seg{display:flex;gap:6px;background:var(--card);border-radius:14px;padding:5px;box-shadow:0 2px 0 var(--line)}
+.seg button{flex:1;border:0;border-radius:10px;padding:8px 0;background:transparent;cursor:pointer;font-family:"Jua",sans-serif;font-size:15.5px;color:var(--soft)}
+.seg button[aria-selected="true"]{background:var(--azul);color:var(--card)}
+.rec .top2{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.rec .tl{font-family:"Jua",sans-serif;font-size:16.5px;line-height:1.35}
+.rec .why{font-size:14px;margin-top:4px}
+.rec .meta{font-size:13px;color:var(--soft);margin-top:4px}
+.rec a{color:var(--azul)}
+.wx{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center}
+.wx .tmp{font-family:"Jua",sans-serif;font-size:22px;color:var(--azul);text-align:right}
+.fc{display:flex;gap:6px;overflow-x:auto;margin-top:8px}
+.fc div{flex:0 0 auto;background:var(--paper);border-radius:10px;padding:5px 8px;font-size:12.5px;text-align:center}
+
+/* 남기기 */
+.req textarea{width:100%;min-height:62px;resize:vertical;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:10px 12px}
+.rq{padding:9px 0;border-bottom:1.5px dashed var(--line);font-size:14px}
+.rq:last-child{border-bottom:0}
+.rq .reply{color:var(--oliva);font-size:13.5px;margin-top:2px}
+.addf{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.addf .inp{flex:1 1 200px;width:auto}
+.addf input[type=date]{flex:0 0 auto}
+
+
+/* 예약 */
+.bk{display:grid;grid-template-columns:62px 1fr;gap:2px 10px;padding:10px 0;border-bottom:1.5px dashed var(--line);cursor:pointer;width:100%;background:transparent;border-left:0;border-right:0;border-top:0;text-align:left}
+.bk:last-child{border-bottom:0}
+.bk .bd{grid-row:span 2;background:var(--tram-2);border-radius:10px;text-align:center;font-family:"Jua",sans-serif;font-size:14px;line-height:1.25;padding:5px 2px;align-self:start}
+.bk .bt{font-size:15px}
+.bk .bm{font-size:13px;color:var(--soft)}
+.bk.past{opacity:.55}
+.bkday{background:var(--tram-2);border-radius:12px;padding:8px 10px;margin-bottom:10px;font-size:14px}
+.bkday div{margin:2px 0}
+.edit select,.edit textarea{width:100%;background:var(--paper);border:2px solid var(--line);border-radius:10px;padding:9px 11px}
+.edit textarea{min-height:64px;resize:vertical}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn.del{border-color:#C62E2E;color:#C62E2E}
+
+
+/* 구간 길찾기 */
+.lg{display:grid;grid-template-columns:62px 1fr;gap:2px 10px;padding:10px 0;border-bottom:1.5px dashed var(--line);text-decoration:none;color:inherit}
+.lg:last-child{border-bottom:0}
+.lg .bd{grid-row:span 2;background:var(--azul-2);color:var(--azul);border-radius:10px;text-align:center;font-family:"Jua",sans-serif;font-size:14px;line-height:1.25;padding:5px 2px;align-self:start}
+.lg .bt{font-size:15px}
+.lg .bm{font-size:13px;color:var(--soft)}
+.lg .go{color:var(--azul);font-size:13px}
+.lg.past{opacity:.5}
+
+.top .r{display:flex;align-items:center;gap:8px}
+.rf{border:2px solid var(--line);background:var(--card);color:var(--azul);border-radius:999px;width:34px;height:34px;cursor:pointer;font-size:17px;line-height:1;display:grid;place-items:center;padding:0}
+.rf.spin{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ptr{position:fixed;left:50%;top:calc(6px + env(safe-area-inset-top,0px));transform:translate(-50%,-70px);background:var(--card);color:var(--azul);
+  font-family:"Jua",sans-serif;font-size:14px;border-radius:999px;padding:7px 16px;box-shadow:0 2px 0 var(--line);z-index:7;pointer-events:none;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.rf.spin{animation:none}}
+
+/* 하단 탭 */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:4;background:var(--card);border-top:2px solid var(--line);
+  padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center}
+nav.tabs .in{display:flex;width:100%;max-width:640px}
+nav.tabs button{flex:1;border:0;background:transparent;cursor:pointer;padding:4px 0;display:flex;flex-direction:column;align-items:center;gap:1px;color:var(--soft);font-family:"Jua",sans-serif;font-size:12.5px}
+nav.tabs button .ic{font-size:21px;line-height:1.1;filter:grayscale(.6);opacity:.75}
+nav.tabs button[aria-current="page"]{color:var(--azul)}
+nav.tabs button[aria-current="page"] .ic{filter:none;opacity:1;transform:translateY(-1px)}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);
+  padding:10px 16px;border-radius:12px;font-size:14px;max-width:min(92vw,520px);display:none;z-index:6}
+.ro{background:var(--naranja-2);border-radius:12px;padding:9px 12px;font-size:13.5px;margin:6px 0}
+@media (prefers-reduced-motion:no-preference){.chk,.pin circle.o{transition:all .15s}}
+
+/* 웹앱 추가 */
+.top .upd.off{color:var(--naranja);font-weight:700}
+.hintcard{border:2px dashed var(--azul);margin-bottom:12px}
+.acct{margin:22px 0 4px;text-align:center}
+.linkbtn{border:0;background:none;color:var(--azul);text-decoration:underline;cursor:pointer;padding:0;font-size:13px}
+#v-login{display:none}
+body.gated #v-login{display:block}
+body.gated .wrap>section:not(#v-login),body.gated nav.tabs,body.gated .top .r{display:none!important}
+.loginbox{padding:24px 4px}
+.loginbox h1{font-size:30px;color:var(--azul);margin:18px 0 8px;font-weight:400}
+.loginbox p{font-size:15px}
+.top .name{white-space:nowrap}
+body.gated .top{display:none}
+.net{background:var(--naranja-2);color:var(--ink);border-radius:12px;padding:9px 12px;font-size:13.5px;margin:0 0 10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><span class="name">🍊 우리 신혼여행</span><span class="r"><span class="upd" id="upd">불러오는 중</span><button class="rf" id="rf" type="button" aria-label="새로고침">↻</button></span></div>
+  <p class="net" id="net" hidden></p>
+  <section id="v-login"></section>
+  <section id="v-home"></section>
+  <section id="v-days" hidden></section>
+  <section id="v-map" hidden></section>
+  <section id="v-tasks" hidden></section>
+  <section id="v-rec" hidden></section>
+</div>
+<nav class="tabs" aria-label="화면 이동"><div class="in">
+  <button data-v="home" aria-current="page"><span class="ic">🏠</span>홈</button>
+  <button data-v="days"><span class="ic">📅</span>일정</button>
+  <button data-v="map"><span class="ic">🗺️</span>지도</button>
+  <button data-v="tasks"><span class="ic">✅</span>할 일</button>
+  <button data-v="rec"><span class="ic">🎒</span>추천</button>
+</div></nav>
+<div class="ptr" id="ptr" aria-hidden="true">↓ 당겨서 새로고침</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.97.0/dist/umd/supabase.js" crossorigin="anonymous"></script>
+<script src="store.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
