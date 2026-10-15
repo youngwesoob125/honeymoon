@@ -258,6 +258,13 @@ body.gated .wrap>section:not(#v-login),body.gated nav.tabs,body.gated .top .r{di
 .loginbox p{font-size:15px}
 .top .name{white-space:nowrap}
 body.gated .top{display:none}
+.gmap{background:var(--card);border-radius:18px;overflow:hidden;box-shadow:0 2px 0 var(--line)}
+.gmap iframe{display:block;width:100%;height:min(52vh,440px);border:0}
+.cchips{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 2px}
+.cchip{border:2px solid var(--azul-2);background:var(--card);color:var(--azul);border-radius:999px;padding:5px 11px;font-family:"Jua",sans-serif;font-size:14.5px;cursor:pointer}
+.cchip.day{color:var(--naranja);border-color:var(--naranja-2)}
+.cchip[aria-pressed="true"]{background:var(--azul);border-color:var(--azul);color:var(--card)}
+.cchip.day[aria-pressed="true"]{background:var(--naranja);border-color:var(--naranja);color:#fff}
 .net{background:var(--naranja-2);color:var(--ink);border-radius:12px;padding:9px 12px;font-size:13.5px;margin:0 0 10px}
 </style>
 </head>

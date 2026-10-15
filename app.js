@@ -181,9 +181,8 @@
   var K = 80, CS = Math.cos(40 * Math.PI / 180);
   function P(lon, lat) { return [((lon + 9.9) * CS * K).toFixed(1), ((44.2 - lat) * K).toFixed(1)]; }
   function pts(a) { return a.map(function (p) { return P(p[0], p[1]).join(','); }).join(' '); }
-  function mapView() {
-    var cs = S.cities.slice().sort(byOrder).filter(function (c) { return c.lat != null; });
-    var svg = '<svg viewBox="0 0 830 672" role="img" aria-label="여행 경로 지도"><polygon class="land" points="' + pts(IB) + '"/><polyline class="border" points="' + pts(PT) + '"/>' +
+  function mapSvg(cs) {
+    var svg = '<svg viewBox="0 0 830 672" role="img" aria-label="여행 경로 그림 지도"><polygon class="land" points="' + pts(IB) + '"/><polyline class="border" points="' + pts(PT) + '"/>' +
       '<text class="sea" x="12" y="300">대서양</text><text class="sea" x="650" y="470">지중해</text>';
     for (var i = 1; i < cs.length; i++) { var a = P(cs[i - 1].lon, cs[i - 1].lat), b = P(cs[i].lon, cs[i].lat); svg += '<line class="leg' + (cs[i].mode === 'flight' ? ' fly' : '') + '" x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '"/>'; }
     S.pins.slice().sort(byOrder).forEach(function (p) { var q = P(p.lon, p.lat); var px = p.lx != null ? p.lx : 12, py = p.ly != null ? p.ly : 5; svg += '<g class="dpin pin" data-pin="' + esc(p.id) + '" tabindex="0" role="button" aria-label="' + esc(p.name) + '"><circle cx="' + q[0] + '" cy="' + q[1] + '" r="8"/><text x="' + (+q[0] + px) + '" y="' + (+q[1] + py) + '"' + (px < 0 ? ' text-anchor="end"' : '') + '>' + esc(p.name) + '</text></g>'; });
@@ -191,11 +190,44 @@
       var q = P(c.lon, c.lat), s = sel === 'c:' + c.id, dx = c.lx || 14, dy = c.ly || -14;
       svg += '<g class="pin' + (s ? ' sel' : '') + '" data-city="' + esc(c.id) + '" tabindex="0" role="button" aria-label="' + esc(c.name) + '"><circle class="o" cx="' + q[0] + '" cy="' + q[1] + '" r="17"/><text class="n" x="' + q[0] + '" y="' + q[1] + '">' + esc(c.order) + '</text><text class="lb" x="' + (+q[0] + dx) + '" y="' + (+q[1] + dy) + '"' + (dx < 0 ? ' text-anchor="end"' : '') + '>' + esc(c.name) + '</text></g>';
     });
-    svg += '</svg>';
-    var h = '<h2 style="margin-top:6px"><span class="em">🗺️</span>여행 지도</h2><p class="hint">번호를 누르면 그 도시의 일정과 장소가 나와요.</p>' +
-      '<div class="mapbox">' + svg + '<div class="legend"><span><i></i>기차·버스</span><span><i class="f"></i>비행기</span><span>🟠 당일치기</span></div></div>';
-    h += '<div id="mapSel">' + mapSel() + '</div>' + legsView();
+    return svg + '</svg>';
+  }
+  var mapKey = '';
+  function mapView() {
+    var cs = S.cities.slice().sort(byOrder).filter(function (c) { return c.lat != null; });
+    var mid = (S.meta && S.meta.mymap) || '', online = navigator.onLine, useG = !!(mid && online);
+    var key = mid + '|' + online;
+    /* 구글 지도가 떠 있으면 데이터가 바뀌어도 지도는 다시 불러오지 않고 아래 목록만 고친다 */
+    if (useG && key === mapKey && $('gmapFrame')) { refreshMapParts(); return; }
+    mapKey = key;
+    var h = '<h2 style="margin-top:6px"><span class="em">🗺️</span>여행 지도</h2>';
+    if (useG) {
+      var gsrc = 'https://www.google.com/maps/d/embed?mid=' + encodeURIComponent(mid);
+      h += '<p class="hint">구글 지도예요. 핀을 누르면 장소가 나와요. 손가락 두 개로 확대할 수 있어요.</p>' +
+        '<div class="gmap"><iframe id="gmapFrame" src="' + esc(gsrc) + '" title="여행 구글 지도" loading="lazy" allowfullscreen></iframe></div>' +
+        '<div class="acts"><a class="btn fill" target="_blank" rel="noopener" href="' + esc('https://www.google.com/maps/d/viewer?mid=' + encodeURIComponent(mid)) + '">구글 지도에서 크게 보기</a></div>';
+    } else if (mid) {
+      h += '<p class="net">인터넷이 없어서 구글 지도 대신 그림 지도를 보여 드려요.</p>';
+    } else {
+      h += '<p class="hint">구글 지도는 연결 준비 중이에요. 지금은 그림 지도예요.</p>';
+    }
+    h += '<div class="cchips" role="group" aria-label="도시 고르기">' + cs.map(function (c) { return '<button type="button" class="cchip" data-msel="c:' + esc(c.id) + '" aria-pressed="' + (sel === 'c:' + c.id) + '">' + esc(c.order) + ' ' + esc(c.name) + '</button>'; }).join('') +
+      S.pins.slice().sort(byOrder).map(function (p) { return '<button type="button" class="cchip day" data-msel="p:' + esc(p.id) + '" aria-pressed="' + (sel === 'p:' + p.id) + '">🟠 ' + esc(p.name) + '</button>'; }).join('') + '</div>';
+    h += '<div id="mapSel">' + mapSel() + '</div>';
+    var box = '<div class="mapbox" id="svgBox">' + mapSvg(cs) + '<div class="legend"><span><i></i>기차·버스</span><span><i class="f"></i>비행기</span><span>🟠 당일치기</span></div></div>';
+    h += useG ? '<details class="fold"><summary>🧭 전체 경로 그림</summary>' + box + '</details>' : box;
+    h += '<div id="legsBox">' + legsView() + '</div>';
     $('v-map').innerHTML = h;
+  }
+  function refreshMapParts() {
+    var ms = $('mapSel'); if (ms) ms.innerHTML = mapSel();
+    var lb = $('legsBox'); if (lb) lb.innerHTML = legsView();
+    Array.prototype.forEach.call(document.querySelectorAll('[data-msel]'), function (b) { b.setAttribute('aria-pressed', String(b.dataset.msel === sel)); });
+    Array.prototype.forEach.call(document.querySelectorAll('#svgBox g[data-city]'), function (g) { g.classList.toggle('sel', sel === 'c:' + g.dataset.city); });
+  }
+  function pickMap(v) {
+    sel = sel === v ? null : v;
+    if ($('mapSel')) { refreshMapParts(); var ms = $('mapSel'); if (sel && ms) ms.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } else mapView();
   }
   var MODE = { transit: ['🚆', '대중교통'], driving: ['🚕', '택시·차'], walking: ['🚶', '도보'], flight: ['✈️', '비행기'] };
   function legUrl(l) {
@@ -212,7 +244,7 @@
       }).join('') + '</div>';
   }
   function mapSel() {
-    if (!sel) return '<div class="empty" style="margin-top:12px">지도에서 도시 번호나 주황 점을 눌러 보세요.</div>';
+    if (!sel) return '<div class="empty" style="margin-top:12px">위에서 도시를 고르면 그 도시의 날짜별 일정과 장소가 나와요. 장소를 누르면 구글 지도가 열려요.</div>';
     var ds = [], title = '';
     if (sel.indexOf('c:') === 0) {
       var c = S.cities.filter(function (x) { return 'c:' + x.id === sel; })[0]; if (!c) return ''; title = c.name + (c.booked ? ', 🏨 ' + c.hotel : '');
@@ -372,8 +404,9 @@
     }
     var dh = el.closest('.day-h');
     if (dh) { var id = dh.dataset.day, body = dh.nextElementSibling, op = body.hidden; body.hidden = !op; dh.setAttribute('aria-expanded', op ? 'true' : 'false'); openDays[id] = op; return; }
-    var pc = el.closest('[data-city]'); if (pc && el.closest('svg')) { sel = 'c:' + pc.dataset.city; mapView(); return; }
-    var pp = el.closest('[data-pin]'); if (pp) { sel = 'p:' + pp.dataset.pin; mapView(); return; }
+    var mc = el.closest('[data-msel]'); if (mc) { pickMap(mc.dataset.msel); return; }
+    var pc = el.closest('[data-city]'); if (pc && el.closest('svg')) { pickMap('c:' + pc.dataset.city); return; }
+    var pp = el.closest('[data-pin]'); if (pp) { pickMap('p:' + pp.dataset.pin); return; }
     var rt = el.closest('[data-rt]'); if (rt) { recTab = rt.dataset.rt; rec(); return; }
   });
   document.addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('svg [role=button]')) { e.preventDefault(); e.target.dispatchEvent(new MouseEvent('click', { bubbles: true })); } });
@@ -427,6 +460,8 @@
   document.addEventListener('visibilitychange', function () { if (!document.hidden && ymd(today()) !== lastDay) { lastDay = ymd(today()); if (!busy()) render(); } });
 
   Store.onChange(function () { if (!busy()) render(); else header(); });
+  window.addEventListener('online', function () { if (view === 'map') { mapKey = ''; mapView(); } });
+  window.addEventListener('offline', function () { if (view === 'map') { mapKey = ''; mapView(); } });
   var h0 = (location.hash || '').replace('#', ''); if (VIEWS.indexOf(h0) >= 0) view = h0;
   go(view);
   Store.start();
