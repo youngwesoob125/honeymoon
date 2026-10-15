@@ -99,6 +99,7 @@ h2 .em{font-size:20px}
 .chip.mute{background:var(--line);color:var(--soft)}
 .btn{border:2px solid var(--azul);background:transparent;color:var(--azul);border-radius:12px;padding:7px 14px;cursor:pointer;font-family:"Jua",sans-serif;font-size:15px}
 .btn.fill{background:var(--azul);color:var(--card)}
+a.btn{display:inline-block;text-decoration:none}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 .small{font-size:13px;color:var(--soft)}
@@ -164,16 +165,22 @@ details.fold[open] summary::after{content:"－"}
 .leg{fill:none;stroke:var(--naranja);stroke-width:3.5;stroke-linecap:round}
 .leg.fly{stroke-dasharray:2 9}
 .pin{cursor:pointer}
-.pin circle.o{fill:var(--card);stroke:var(--azul);stroke-width:3}
-.pin.sel circle.o{fill:var(--tram);stroke:var(--naranja)}
-.pin text.n{font-family:"Jua",sans-serif;font-size:17px;fill:var(--azul);text-anchor:middle;dominant-baseline:central}
-.pin text.lb{font-family:"Jua",sans-serif;font-size:19px;fill:var(--ink);paint-order:stroke;stroke:var(--card);stroke-width:5px;stroke-linejoin:round}
-.dpin circle{fill:var(--naranja);stroke:var(--card);stroke-width:2.5}
-.dpin text{font-size:15px;fill:var(--soft);font-family:"Gowun Dodum",sans-serif;paint-order:stroke;stroke:var(--card);stroke-width:4px}
-.sea{font-family:"Jua",sans-serif;fill:var(--soft);font-size:18px;opacity:.7}
-.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--soft);padding:6px 8px 2px}
-.legend i{display:inline-block;width:26px;height:0;border-top:3.5px solid var(--naranja);vertical-align:middle;margin-right:5px}
-.legend i.f{border-top-style:dotted}
+.pin circle.o{fill:var(--card);stroke:var(--azul);stroke-width:4}
+.pin.sel circle.o{fill:var(--azul)}
+.pin text.n{font-family:"Jua",sans-serif;font-size:23px;fill:var(--azul);text-anchor:middle;dominant-baseline:central}
+.pin.sel text.n{fill:var(--card)}
+.pin text.lb{font-family:"Jua",sans-serif;font-size:31px;fill:var(--ink);paint-order:stroke;stroke:var(--card);stroke-width:8px;stroke-linejoin:round}
+.spur{stroke:var(--naranja);stroke-width:3;stroke-linecap:round;stroke-dasharray:.5 7}
+.dpin circle{fill:var(--naranja);stroke:var(--card);stroke-width:3}
+.dpin.sel circle{stroke:var(--ink);stroke-width:4}
+.dpin text{font-size:25px;fill:var(--naranja);font-family:"Jua",sans-serif;paint-order:stroke;stroke:var(--card);stroke-width:7px;stroke-linejoin:round}
+.sea{font-family:"Jua",sans-serif;fill:var(--soft);font-size:26px;opacity:.7}
+/* 범례: 카드 안 맨 아래, 점선 구분선 하나로만 나눈다 (따로 상자 없음) */
+.legend{display:flex;justify-content:center;align-items:center;gap:6px 16px;flex-wrap:wrap;font-size:13px;color:var(--soft);margin-top:8px;padding:10px 4px 2px;border-top:1.5px dashed var(--line)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i.ln{display:inline-block;width:24px;height:0;border-top:3.5px solid var(--naranja)}
+.legend i.ln.f{border-top-style:dotted}
+.ddot{display:inline-block;flex:0 0 auto;width:10px;height:10px;border-radius:50%;background:var(--naranja)}
 .mlink{display:inline-block;margin-top:10px;text-decoration:none}
 
 /* 추천 */
@@ -195,9 +202,11 @@ details.fold[open] summary::after{content:"－"}
 .rq{padding:9px 0;border-bottom:1.5px dashed var(--line);font-size:14px}
 .rq:last-child{border-bottom:0}
 .rq .reply{color:var(--oliva);font-size:13.5px;margin-top:2px}
-.addf{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.addf .inp{flex:1 1 200px;width:auto}
-.addf input[type=date]{flex:0 0 auto}
+.addf{margin-top:14px}
+.addf>b{display:block;font-size:16px;margin-bottom:8px;color:var(--azul)}
+.addrow{display:flex;gap:8px;align-items:center;margin-top:8px}
+.addrow label{flex:0 0 auto}
+.addrow .inp{flex:1 1 auto;min-width:0;width:auto}
 
 
 /* 예약 */
@@ -221,7 +230,7 @@ details.fold[open] summary::after{content:"－"}
 .lg .bd{grid-row:span 2;background:var(--azul-2);color:var(--azul);border-radius:10px;text-align:center;font-family:"Jua",sans-serif;font-size:14px;line-height:1.25;padding:5px 2px;align-self:start}
 .lg .bt{font-size:15px}
 .lg .bm{font-size:13px;color:var(--soft)}
-.lg .go{color:var(--azul);font-size:13px}
+.lg .go{color:var(--azul);font-size:13px;white-space:nowrap}
 .lg.past{opacity:.5}
 
 .top .r{display:flex;align-items:center;gap:8px}
@@ -263,12 +272,47 @@ body.gated .top{display:none}
 .btn.small-btn{font-size:13.5px;padding:5px 11px;border-width:1.5px}
 .chip.mute{background:var(--line);color:var(--soft)}
 .gmap{background:var(--card);border-radius:18px;overflow:hidden;box-shadow:0 2px 0 var(--line)}
-.gmap iframe{display:block;width:100%;height:min(52vh,440px);border:0}
-.cchips{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 2px}
-.cchip{border:2px solid var(--azul-2);background:var(--card);color:var(--azul);border-radius:999px;padding:5px 11px;font-family:"Jua",sans-serif;font-size:14.5px;cursor:pointer}
-.cchip.day{color:var(--naranja);border-color:var(--naranja-2)}
-.cchip[aria-pressed="true"]{background:var(--azul);border-color:var(--azul);color:var(--card)}
-.cchip.day[aria-pressed="true"]{background:var(--naranja);border-color:var(--naranja);color:#fff}
+.gmap iframe{display:block;width:100%;height:min(50vh,420px);border:0}
+/* 도시 순서: 왼쪽 번호를 이동선(실선=기차·버스·차, 점선=비행기)으로 잇고, 당일치기는 같은 줄 오른쪽 */
+.route{padding:6px 6px 10px}
+.rt{position:relative;display:flex;align-items:center;border-radius:12px}
+.rt.on{background:var(--azul-2)}
+.rt.in::before,.rt.in-fly::before,.rt.out::after,.rt.out-fly::after{content:"";position:absolute;left:23.5px;width:0;border-left:3px solid var(--naranja)}
+.rt.in::before,.rt.in-fly::before{top:0;height:50%}
+.rt.out::after,.rt.out-fly::after{top:50%;bottom:0}
+.rt.in-fly::before,.rt.out-fly::after{border-left-style:dotted}
+.rt-c{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 0 8px 10px;border:0;background:none;text-align:left;cursor:pointer;border-radius:12px;color:inherit}
+.rt-n{position:relative;z-index:1;flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:var(--card);border:3px solid var(--azul);color:var(--azul);display:grid;place-items:center;font-family:"Jua",sans-serif;font-size:15px;line-height:1}
+.rt-n.on{background:var(--azul);color:var(--card)}
+.rt-t{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;line-height:1.3}
+.rt-t b{font-family:"Jua",sans-serif;font-weight:400;font-size:17px;white-space:nowrap}
+.rt-t b .chip{font-family:"Gowun Dodum",sans-serif;font-size:11.5px;padding:1px 7px;vertical-align:2px}
+.rt-t>span{font-size:12.5px;color:var(--soft);white-space:nowrap}
+.rt-line{flex:1 1 12px;min-width:12px;height:0;border-top:2.5px dotted var(--naranja);opacity:.7;margin-left:2px}
+.rt-d{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;height:36px;margin:0 8px 0 6px;padding:0 12px;border-radius:999px;border:2px solid var(--naranja-2);background:var(--card);color:var(--naranja);font-family:"Jua",sans-serif;font-size:14.5px;cursor:pointer;white-space:nowrap}
+.rt-d small{font-family:"Gowun Dodum",sans-serif;font-size:12px;color:var(--soft)}
+.rt-d[aria-pressed="true"]{background:var(--naranja);border-color:var(--naranja);color:var(--card)}
+.rt-d[aria-pressed="true"] small{color:var(--card)}
+.rt-d[aria-pressed="true"] .ddot{background:var(--card)}
+.route .legend{margin:6px 6px 0}
+/* 고른 도시·당일치기 */
+.selhead{border:2px solid var(--azul-2);margin-top:14px}
+.selhead.trip{border-color:var(--naranja-2)}
+.selhead .sh{display:flex;align-items:center;gap:12px}
+.selhead .sh b{font-size:20px;line-height:1.2}
+.selhead .pchips{margin-top:10px}
+.tdot{flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:var(--naranja);box-shadow:inset 0 0 0 7px var(--naranja-2)}
+button.pchip{border:0;cursor:pointer;font-family:inherit}
+.pchip.trip{display:inline-flex;align-items:center;gap:6px;background:var(--naranja-2);color:var(--naranja)}
+.dtag{display:inline-flex;align-items:center;gap:5px;vertical-align:2px;font-family:"Gowun Dodum",sans-serif;font-size:12px;font-weight:700;line-height:1.5;color:var(--naranja);background:var(--naranja-2);border:0;border-radius:999px;padding:1px 9px 1px 7px;white-space:nowrap}
+button.dtag{cursor:pointer}
+.dtag .ddot{width:8px;height:8px}
+.sday .row{align-items:center}
+.mlegs{margin-top:10px;border-top:1.5px dashed var(--line);padding-top:6px}
+.mleg{display:flex;gap:10px;align-items:baseline;justify-content:space-between;padding:5px 0;font-size:14px;color:inherit;text-decoration:none}
+.mleg .go{flex:0 0 auto;color:var(--azul);font-size:13px}
+/* 접는 카드 안의 그림 지도는 카드와 한 몸으로 (안쪽 상자·그림자 없음) */
+details.fold .mapbox{background:none;box-shadow:none;border-radius:0;padding:0 0 12px}
 .net{background:var(--naranja-2);color:var(--ink);border-radius:12px;padding:9px 12px;font-size:13.5px;margin:0 0 10px}
 </style>
 </head>
