@@ -2,7 +2,7 @@
 (function () {
   var S = { meta: null, cities: [], days: [], tasks: [], watch: [], log: [], briefs: [], props: [], reqs: [], places: [], pins: [], tours: [], shops: [], weather: [], bookings: [], legs: [] };
   var MAP = { cities: 'cities', days: 'days', tasks: 'tasks', watch: 'watch', log: 'log', briefs: 'briefs', props: 'proposals', reqs: 'requests', places: 'places', pins: 'pins', tours: 'tours', shops: 'shops', weather: 'weather', bookings: 'bookings', legs: 'legs' };
-  var loaded = false, view = 'home', editing = null, sel = null, recTab = 'tour', openDays = {}, bkEdit = null, lastMode = null;
+  var loaded = false, view = 'home', editing = null, sel = null, recTab = 'tour', openDays = {}, bkEdit = null, lastMode = null, dayEdit = null, taskEdit = null, foldOpen = {}, undoArm = null;
   var DOW = ['일', '월', '화', '수', '목', '금', '토'];
   var KIND = { see: '🏛️', eat: '🍽️', stay: '🏨', shop: '🛍️', night: '🌙', move: '🚆' };
   var BK = [['stay', '🏨', '숙소'], ['move', '🚆', '교통'], ['ticket', '🎟️', '입장권'], ['tour', '🚌', '투어'], ['eat', '🍽️', '식당'], ['etc', '📌', '기타']];
@@ -24,6 +24,13 @@
   function canEdit() { var m = Store.status.mode; return m === 'ready' || m === 'demo'; }
   function myId() { var me = Store.me(); return me ? me.email : null; }
   function byOrder(a, b) { return (a.order || 0) - (b.order || 0); }
+  var REQ = { '처리됨': ['ok', '반영됨'], '확인 필요': ['ora', '확인 필요'], '되돌림': ['mute', '되돌림'], '대기': ['blue', '대기'] };
+  function undoBtn(batch) {
+    if (!canEdit() || Store.status.mode === 'demo') return '';
+    var armed = undoArm === batch;
+    return '<div class="acts" style="margin-top:6px"><button type="button" class="btn small-btn' + (armed ? ' del' : '') + '" data-undo="' + esc(batch) + '">' + (armed ? '한 번 더 누르면 되돌려요' : '↩︎ 이 변경 되돌리기') + '</button></div>';
+  }
+  function foldAttr(k) { return ' data-fold="' + k + '"' + (foldOpen[k] ? ' open' : ''); }
   function nowIso() { return new Date().toISOString(); }
   function whoName(x) {
     if (!x) return '';
@@ -99,9 +106,13 @@
       h += '<button class="stamp' + (now ? ' now' : '') + '" data-cid="' + esc(c.id) + '"><span class="c">' + esc(c.name) + '</span><span class="dt">' + esc(md(c.from).split(' ')[0]) + '–' + esc(md(c.to).split(' ')[0]) + ', ' + esc(c.nights) + '박</span><span class="h ' + (c.booked ? 'ok' : 'no') + '">' + (c.booked ? '🏨 ' + esc(c.hotel) : (c.hotel ? esc(c.hotel) + ' (미확정)' : '숙소 미정')) + '</span></button>';
     });
     h += '</div><div id="cityEdit"></div>';
-    h += '<h2><span class="em">💬</span>Claude에게 남기기</h2><form class="req" id="reqf"' + (canEdit() ? '' : ' hidden') + '><textarea id="reqt" maxlength="300" placeholder="예: 샌딩투어 예약했어, 12/27 08:30 픽업" aria-label="Claude에게 남길 말"></textarea><div class="row" style="margin-top:6px"><span class="small">다음 점검 때 읽고 반영해요.</span><button class="btn fill" type="submit">남기기</button></div></form>';
+    h += '<h2><span class="em">💬</span>Claude에게 남기기</h2><form class="req" id="reqf"' + (canEdit() ? '' : ' hidden') + '><textarea id="reqt" maxlength="300" placeholder="예: 샌딩투어 예약했어, 12/27 08:30 픽업" aria-label="Claude에게 남길 말"></textarea><div class="row" style="margin-top:6px"><span class="small">1시간 안에(매시 정각쯤) 읽고 반영해요.</span><button class="btn fill" type="submit">남기기</button></div></form>';
     var rq = S.reqs.slice().sort(function (x, y) { return (x.at || '') < (y.at || '') ? 1 : -1; }).slice(0, 5);
-    if (rq.length) h += '<div class="card">' + rq.map(function (r) { var d = r.status === '처리됨'; return '<div class="rq"><span class="chip ' + (d ? 'ok' : 'blue') + '">' + (d ? '반영됨' : '대기') + '</span> <span class="small">' + esc(md(r.at)) + '</span><div>' + esc(r.text) + '</div>' + (r.reply ? '<div class="reply">' + esc(r.reply) + '</div>' : '') + '</div>'; }).join('') + '</div>';
+    if (rq.length) h += '<div class="card">' + rq.map(function (r) {
+      var st = REQ[r.status] || REQ['대기'];
+      return '<div class="rq"><span class="chip ' + st[0] + '">' + st[1] + '</span> <span class="small">' + esc(md(r.at)) + '</span><div>' + esc(r.text) + '</div>' + (r.reply ? '<div class="reply">' + esc(r.reply) + '</div>' : '') +
+        (r.status === '처리됨' && r.batch ? undoBtn(r.batch) : '') + '</div>';
+    }).join('') + '</div>';
     $('v-home').innerHTML = h;
     cityEdit(); bkArea();
   }
@@ -160,12 +171,22 @@
         '<span class="dbadge"><span class="m">' + (dd.getMonth() + 1) + '월</span><span class="dd">' + dd.getDate() + '</span><span class="w">' + DOW[dd.getDay()] + '</span></span>' +
         '<span class="dh-txt"><span class="dh-city">' + esc(d.city) + '</span><span class="dh-head">' + esc(d.headline || '') + '</span></span>' +
         (w ? '<span class="wchip">' + (w.fc ? '🌤️' : '🌡️') + '<br>' + esc(w.txt.replace('평년 ', '')) + '</span>' : '') + '</button>' +
-        '<div class="day-b"' + (open ? '' : ' hidden') + '>' + dayBk(d.date) + '<ul>' + (d.items || []).map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>' +
+        '<div class="day-b"' + (open ? '' : ' hidden') + '>' + (dayEdit === d.id ? dayForm(d) :
+        dayBk(d.date) + '<ul>' + (d.items || []).map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>' +
         (pl.length ? '<div class="pchips">' + pl.map(function (p) { return '<a class="pchip" target="_blank" rel="noopener" href="' + esc(gmap(p.q || p.name)) + '">' + (KIND[p.kind] || '📍') + ' ' + esc(p.name) + '</a>'; }).join('') + '</div>' : '') +
-        ((d.notes && d.notes.length) ? '<div class="dnote">' + d.notes.map(esc).join('<br>') + '</div>' : '') + '</div></article>';
+        ((d.notes && d.notes.length) ? '<div class="dnote">' + d.notes.map(esc).join('<br>') + '</div>' : '') +
+        (canEdit() ? '<div class="acts"><button type="button" class="btn small-btn" data-dedit="' + esc(d.id) + '">✏️ 이 날 일정 고치기</button></div>' : '')) + '</div></article>';
     });
     $('v-days').innerHTML = h;
   }
+  function dayForm(d) {
+    return '<form class="edit" id="dayf" data-id="' + esc(d.id) + '"><b class="disp">' + esc(md(d.date)) + ' 일정 고치기</b>' +
+      '<label for="dfh">한 줄 요약</label><input class="inp" id="dfh" maxlength="80" value="' + esc(d.headline || '') + '">' +
+      '<label for="dfi">일정 (한 줄에 하나씩)</label><textarea id="dfi" rows="7">' + esc((d.items || []).join('\n')) + '</textarea>' +
+      '<label for="dfn">메모 (한 줄에 하나씩)</label><textarea id="dfn" rows="4">' + esc((d.notes || []).join('\n')) + '</textarea>' +
+      '<div class="acts"><button class="btn fill" type="submit">저장</button><button class="btn" type="button" id="dfcancel">닫기</button></div></form>';
+  }
+  function lines(v) { return String(v || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
   function dayBk(date) {
     var l = bkSorted().filter(function (b) { return b.date === date || (b.kind === 'stay' && b.end === date); });
     if (!l.length) return '';
@@ -264,29 +285,40 @@
   /* ---------- 할 일 ---------- */
   function sortedTasks() { return S.tasks.slice().sort(function (a, b) { return (a.due || '9') < (b.due || '9') ? -1 : (a.due || '9') > (b.due || '9') ? 1 : (a.order || 0) - (b.order || 0); }); }
   function taskRow(t) {
+    if (taskEdit === t.id) return taskForm(t);
     var n = diff(t.due), cls = '', txt = t.due ? md(t.due) + '까지' : '';
     if (!t.done && n !== null) { if (n < 0) { cls = 'late'; txt += ' (지남)'; } else if (n <= 7) { cls = 'soon'; txt += n === 0 ? ' (오늘)' : ' (' + n + '일 남음)'; } }
     var who = t.done ? (t.doneBy ? whoName(t.doneBy) + ' 체크' : '완료') : '';
     return '<div class="task' + (t.done ? ' done' : '') + '"><button class="chk" role="checkbox" aria-checked="' + (t.done ? 'true' : 'false') + '" aria-label="' + esc(t.title) + '" data-tid="' + esc(t.id) + '"' + (canEdit() ? '' : ' disabled') + '></button>' +
-      '<div class="tt">' + esc(t.title) + '</div><div class="tm">' + (txt ? '<span class="due ' + cls + '">' + esc(txt) + '</span>' : '') + (t.passport ? '<span class="pp">🛂 새 여권번호</span>' : '') + (t.note ? '<span>' + esc(t.note) + '</span>' : '') + (who ? '<span class="who">' + esc(who) + '</span>' : '') + '</div></div>';
+      '<button type="button" class="tt" data-tedit="' + esc(t.id) + '"' + (canEdit() ? '' : ' disabled') + '>' + esc(t.title) + '</button><div class="tm">' + (txt ? '<span class="due ' + cls + '">' + esc(txt) + '</span>' : '') + (t.passport ? '<span class="pp">🛂 새 여권번호</span>' : '') + (t.note ? '<span>' + esc(t.note) + '</span>' : '') + (who ? '<span class="who">' + esc(who) + '</span>' : '') + '</div></div>';
+  }
+  function taskForm(t) {
+    return '<form class="edit" id="taskf" data-id="' + esc(t.id) + '"><b class="disp">할 일 고치기</b>' +
+      '<label for="tfh">할 일</label><input class="inp" id="tfh" maxlength="80" required value="' + esc(t.title || '') + '">' +
+      '<label for="tfd">마감일</label><input class="inp" type="date" id="tfd" value="' + esc(t.due || '') + '">' +
+      '<label for="tfn">메모</label><textarea id="tfn" rows="3">' + esc(t.note || '') + '</textarea>' +
+      '<label class="chkrow"><input type="checkbox" id="tfp"' + (t.passport ? ' checked' : '') + '> 새 여권번호 필요</label>' +
+      '<div class="acts"><button class="btn fill" type="submit">저장</button><button class="btn" type="button" id="tfcancel">닫기</button><button class="btn del" type="button" id="tfdel">삭제</button></div></form>';
   }
   function tasks() {
-    var h = '<h2 style="margin-top:6px"><span class="em">✅</span>할 일</h2>', cur = '', buf = [];
+    var h = '<h2 style="margin-top:6px"><span class="em">✅</span>할 일</h2>' + (canEdit() ? '<p class="hint">제목을 누르면 고치거나 지울 수 있어요.</p>' : ''), cur = '', buf = [];
     var open = sortedTasks().filter(function (t) { return !t.done; }), done = sortedTasks().filter(function (t) { return t.done; });
     function flush() { if (buf.length) { h += '<div class="card">' + buf.join('') + '</div>'; buf = []; } }
     open.forEach(function (t) { var d = pd(t.due), k = d ? (d.getMonth() + 1) + '월' : '날짜 없음'; if (k !== cur) { flush(); h += '<div class="month">' + esc(k) + '</div>'; cur = k; } buf.push(taskRow(t)); });
     flush();
     if (!S.tasks.length && loaded) h += '<div class="empty">할 일이 없어요. 아래에서 추가해 보세요.</div>';
     h += '<form class="addf" id="addf"' + (canEdit() ? '' : ' hidden') + '><input class="inp" id="addt" maxlength="80" placeholder="할 일 추가 (예: 환전하기)" required aria-label="할 일"><input class="inp" type="date" id="addd" aria-label="마감일"><button class="btn fill" type="submit">추가</button></form>';
-    if (done.length) h += '<details class="fold"><summary>끝낸 일 ' + done.length + '개</summary>' + done.map(taskRow).join('') + '</details>';
+    if (done.length) h += '<details class="fold"' + foldAttr('done') + '><summary>끝낸 일 ' + done.length + '개</summary>' + done.map(taskRow).join('') + '</details>';
     var ord = { '변동': 0, '대기': 1, '확인됨': 2 };
     var ws = S.watch.slice().sort(function (a, b) { return (ord[a.status] || 1) - (ord[b.status] || 1); });
-    h += '<details class="fold"><summary>🔍 다시 확인할 것 ' + ws.length + '개</summary>' + ws.map(function (w) {
+    h += '<details class="fold"' + foldAttr('watch') + '><summary>🔍 다시 확인할 것 ' + ws.length + '개</summary>' + ws.map(function (w) {
       var c = w.status === '확인됨' ? 'ok' : w.status === '변동' ? 'ora' : 'blue';
       return '<div class="rq"><div class="row"><b>' + esc(w.title) + '</b><span class="chip ' + c + '">' + esc(w.status || '대기') + '</span></div><div style="font-size:14px">' + esc(w.detail || '') + '</div><div class="small">' + (w.checkFrom ? esc(md(w.checkFrom)) + '부터 확인' : '') + (w.lastChecked ? ', 마지막 확인 ' + esc(md(w.lastChecked)) : '') + '</div></div>';
     }).join('') + '</details>';
     var lg = S.log.slice().sort(function (a, b) { return (a.at || '') < (b.at || '') ? 1 : -1; });
-    h += '<details class="fold"><summary>📜 바뀐 내용</summary>' + lg.map(function (l) { return '<div class="rq"><span class="small">' + esc(md(l.at)) + '</span><div>' + esc(l.text) + '</div></div>'; }).join('') + '</details>';
+    h += '<details class="fold"' + foldAttr('log') + '><summary>📜 바뀐 내용</summary>' + lg.map(function (l) {
+      return '<div class="rq"><span class="small">' + esc(md(l.at)) + (l.undone ? ' · 되돌림' : '') + '</span><div>' + esc(l.text) + '</div>' + (l.batch && !l.undone ? undoBtn(l.batch) : '') + '</div>';
+    }).join('') + '</details>';
     var me = Store.me();
     h += '<div class="acct small">' + (Store.status.mode === 'demo' ? '데모 모드: 바꾼 내용은 이 기기에만 저장돼요.' : (me && me.email ? esc(me.name || me.email) + ' (' + esc(me.email) + ')로 로그인 · <button class="linkbtn" id="logout" type="button">로그아웃</button>' : '')) + '</div>';
     $('v-tasks').innerHTML = h;
@@ -360,7 +392,7 @@
     pull(); header();
     if (view === 'home') home(); else if (view === 'days') days(); else if (view === 'map') mapView(); else if (view === 'tasks') tasks(); else rec();
   }
-  function busy() { return view === 'home' && (editing || bkEdit); }
+  function busy() { return !!(editing || bkEdit || dayEdit || taskEdit); }
   function go(v) {
     view = v; VIEWS.forEach(function (k) { $('v-' + k).hidden = (k !== v); });
     Array.prototype.forEach.call(document.querySelectorAll('nav.tabs button'), function (b) { if (b.dataset.v === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
@@ -377,6 +409,21 @@
       var em = $('lem').value, pw = $('lpw').value;
       if (!em || (pw || '').length < 6) { loginView('이메일과 6자 이상 비밀번호를 넣어 주세요.'); return; }
       Store.signup(em, pw).then(function (r) { if (r === 'confirm') loginView('메일함에서 확인 링크를 누른 뒤, 여기로 돌아와 로그인하세요.'); else render(); }, function (err) { loginView(err.message || '가입하지 못했어요.'); });
+      return;
+    }
+    var de = el.closest('[data-dedit]'); if (de) { dayEdit = de.dataset.dedit; days(); var f0 = $('dayf'); if (f0) f0.scrollIntoView({ block: 'start' }); return; }
+    if (el.closest('#dfcancel')) { dayEdit = null; days(); return; }
+    var te = el.closest('[data-tedit]'); if (te && !te.disabled) { taskEdit = te.dataset.tedit; render(); var f1 = $('taskf'); if (f1) { f1.scrollIntoView({ block: 'center' }); } return; }
+    if (el.closest('#tfcancel')) { taskEdit = null; render(); return; }
+    var td = el.closest('#tfdel');
+    if (td) { if (!td.dataset.sure) { td.dataset.sure = '1'; td.textContent = '한 번 더 누르면 삭제'; return; } Store.remove('tasks', taskEdit); taskEdit = null; toast(savedMsg('할 일을 지웠어요.')); render(); return; }
+    var ub = el.closest('[data-undo]');
+    if (ub) {
+      var bt = ub.dataset.undo;
+      if (!navigator.onLine) { toast('인터넷이 연결되면 되돌릴 수 있어요.'); return; }
+      if (undoArm !== bt) { undoArm = bt; ub.classList.add('del'); ub.textContent = '한 번 더 누르면 되돌려요'; setTimeout(function () { if (undoArm === bt) { undoArm = null; if (!busy()) render(); } }, 5000); return; }
+      undoArm = null; ub.disabled = true; ub.textContent = '되돌리는 중…';
+      Store.rpc('undo_batch', { p_batch: bt }).then(function (n) { toast('되돌렸어요. (' + n + '건)'); return Store.sync(); }, function (e) { ub.disabled = false; toast('되돌리지 못했어요: ' + ((e && e.message) || '오류')); });
       return;
     }
     var ck = el.closest('.chk');
@@ -409,6 +456,7 @@
     var pp = el.closest('[data-pin]'); if (pp) { pickMap('p:' + pp.dataset.pin); return; }
     var rt = el.closest('[data-rt]'); if (rt) { recTab = rt.dataset.rt; rec(); return; }
   });
+  document.addEventListener('toggle', function (e) { var d = e.target; if (d && d.dataset && d.dataset.fold) foldOpen[d.dataset.fold] = d.open; }, true);
   document.addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('svg [role=button]')) { e.preventDefault(); e.target.dispatchEvent(new MouseEvent('click', { bubbles: true })); } });
   document.addEventListener('submit', function (e) {
     e.preventDefault();
@@ -423,9 +471,18 @@
       return;
     }
     if (!canEdit()) return;
+    if (id === 'dayf') {
+      Store.update('days', e.target.dataset.id, { headline: $('dfh').value.trim(), items: lines($('dfi').value), notes: lines($('dfn').value), editedBy: myId(), editedAt: nowIso() });
+      dayEdit = null; toast(savedMsg('일정을 고쳤어요.')); render(); return;
+    }
+    if (id === 'taskf') {
+      var tt0 = $('tfh').value.trim(); if (!tt0) { toast('할 일을 입력해 주세요.'); return; }
+      Store.update('tasks', e.target.dataset.id, { title: tt0, due: $('tfd').value || null, note: $('tfn').value.trim(), passport: $('tfp').checked, editedBy: myId(), editedAt: nowIso() });
+      taskEdit = null; toast(savedMsg('할 일을 고쳤어요.')); render(); return;
+    }
     if (id === 'reqf') {
       var v = $('reqt').value.trim(); if (!v) return;
-      Store.add('requests', { text: v, at: nowIso(), by: myId(), status: '대기', reply: null }); $('reqt').value = ''; toast(savedMsg('남겼어요. 다음 점검 때 반영돼요.'));
+      Store.add('requests', { text: v, at: nowIso(), by: myId(), status: '대기', reply: null }); $('reqt').value = ''; toast(savedMsg('남겼어요. 1시간 안에 반영돼요.'));
     } else if (id === 'bkf') {
       var data = { kind: $('bkk').value, title: $('bkt').value.trim(), date: $('bkd').value, time: $('bktm').value || '', end: $('bke').value || '', place: $('bkp').value.trim(), memo: $('bkm').value.trim(), link: $('bkl').value.trim(), by: myId(), at: nowIso() };
       if (!data.title || !data.date) { toast('이름과 날짜를 입력해 주세요.'); return; }

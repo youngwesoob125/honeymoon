@@ -201,6 +201,11 @@
     set: function (c, id, data) { return queue({ op: 'set', col: c, id: id, data: data }); },
     add: function (c, data) { return queue({ op: 'set', col: c, id: rid(), data: data }); },
     remove: function (c, id) { return queue({ op: 'delete', col: c, id: id }); },
+    rpc: function (name, args) {
+      if (!client || status.mode !== 'ready') return Promise.reject(new Error('로그인 상태에서만 할 수 있어요.'));
+      if (!navigator.onLine) return Promise.reject(new Error('오프라인이에요.'));
+      return client.rpc(name, args).then(function (r) { if (r.error) throw r.error; return r.data; });
+    },
     status: status,
     me: function () { return me; },
     members: function () { return members; },
