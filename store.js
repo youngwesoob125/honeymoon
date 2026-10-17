@@ -190,6 +190,42 @@
     if (status.mode === 'ready' && navigator.onLine && Date.now() - hidAt > 60 * 1000) sync();
   });
 
+  /* ---------- 지갑 파일 (Supabase Storage, 비공개 보관함 'wallet') ----------
+     데모 모드에서는 서버가 없으니 앱이 기기 저장소(Cache)에만 둔다. */
+  function bucket() { return client.storage.from('wallet'); }
+  function canFiles() { return status.mode === 'demo' || (!!client && status.mode === 'ready'); }
+  function fileUp(path, blob, type) {
+    if (status.mode === 'demo') return Promise.resolve(path);
+    if (!navigator.onLine) return Promise.reject(new Error('오프라인이에요.'));
+    return bucket().upload(path, blob, { contentType: type || blob.type || 'application/octet-stream', upsert: true, cacheControl: '31536000' })
+      .then(function (r) { if (r.error) throw r.error; return path; });
+  }
+  function fileGet(path) {
+    if (status.mode === 'demo') return Promise.reject(new Error('데모: 기기에 없음'));
+    return bucket().download(path).then(function (r) { if (r.error) throw r.error; return r.data; });
+  }
+  function fileDel(paths) {
+    if (status.mode === 'demo' || !paths || !paths.length) return Promise.resolve();
+    return bucket().remove(paths).then(function (r) { if (r.error) throw r.error; });
+  }
+  function fileLink(path, sec) {
+    return bucket().createSignedUrl(path, sec || 600).then(function (r) { if (r.error) throw r.error; return r.data.signedUrl; });
+  }
+  /* ---------- 알림 구독 ---------- */
+  function pushSave(sub, prefs) {
+    if (!client || status.mode !== 'ready') return Promise.reject(new Error('로그인 상태에서만 할 수 있어요.'));
+    return client.from('push_subs').upsert({ endpoint: sub.endpoint, email: me.email, p256dh: sub.p256dh, auth: sub.auth, prefs: prefs, ua: String(navigator.userAgent).slice(0, 200) })
+      .then(function (r) { if (r.error) throw r.error; });
+  }
+  function pushGet(endpoint) {
+    if (!client || status.mode !== 'ready') return Promise.resolve(null);
+    return client.from('push_subs').select('endpoint,prefs').eq('endpoint', endpoint).then(function (r) { if (r.error) throw r.error; return (r.data || [])[0] || null; });
+  }
+  function pushDel(endpoint) {
+    if (!client || status.mode !== 'ready') return Promise.resolve();
+    return client.from('push_subs').delete().eq('endpoint', endpoint).then(function (r) { if (r.error) throw r.error; });
+  }
+
   function list(c) { var o = docs[c] || {}; return Object.keys(o).map(function (id) { var x = Object.assign({}, o[id]); x.id = id; return x; }); }
 
   window.Store = {
@@ -208,6 +244,9 @@
     },
     status: status,
     me: function () { return me; },
+    newId: rid,
+    canFiles: canFiles, fileUp: fileUp, fileGet: fileGet, fileDel: fileDel, fileLink: fileLink,
+    pushSave: pushSave, pushGet: pushGet, pushDel: pushDel,
     members: function () { return members; },
     clearError: function () { status.error = null; }
   };

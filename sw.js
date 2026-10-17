@@ -2,7 +2,7 @@
    - 앱 화면 파일은 먼저 저장본으로 빠르게 열고, 뒤에서 새 버전을 받아 둔다.
    - 글꼴과 Supabase 라이브러리는 한 번 받으면 저장해 둔다.
    - 데이터(Supabase API)는 저장하지 않는다. 데이터 저장본은 앱이 따로 관리한다. */
-var VERSION = 'hm-v4';
+var VERSION = 'hm-v5';
 var SHELL = ['./', './index.html', './app.js', './store.js', './config.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 var LIB = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.97.0/dist/umd/supabase.js';
@@ -47,4 +47,28 @@ self.addEventListener('fetch', function (e) {
       url.hostname === 'cdn.jsdelivr.net') {
     e.respondWith(staleWhileRevalidate(req));
   }
+});
+
+/* ---------- 알림 ---------- */
+self.addEventListener('push', function (e) {
+  var d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (x) { d = { title: '우리 신혼여행', body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || '우리 신혼여행', {
+    body: d.body || '', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: d.tag || undefined,
+    data: { url: d.url || './' }
+  }));
+});
+self.addEventListener('notificationclick', function (e) {
+  e.notification.close();
+  var url = new URL((e.notification.data && e.notification.data.url) || './', self.registration.scope).href;
+  var hash = (url.split('#')[1] || '');
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (ws) {
+    for (var i = 0; i < ws.length; i++) {
+      if (ws[i].url.indexOf(self.registration.scope) === 0 && 'focus' in ws[i]) {
+        if (hash) ws[i].postMessage({ go: hash });
+        return ws[i].focus();
+      }
+    }
+    return self.clients.openWindow ? self.clients.openWindow(url) : null;
+  }));
 });

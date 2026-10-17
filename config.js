@@ -3,5 +3,7 @@
 window.HM_CONFIG = {
   url: 'https://wvtnjnezraaolnfikpqr.supabase.co',
   anonKey: 'sb_publishable_82McxhLsSZw_oajuTH7igA_Tjdm9vGA',
-  legacyNames: {}
+  legacyNames: {},
+  /* 웹 푸시 공개키(VAPID). 비밀키는 Supabase Vault에만 있다. */
+  vapid: 'BHkezTxG7Y6Vj5vRos-5cuErhEZS7xTwddOuEuX4QcTdztDob1rFdnPo9Jj3LTUmJZrwBntsblYm-JRxTDvE3fE'
 };

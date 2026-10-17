@@ -1,14 +1,17 @@
 /* 우리 신혼여행: 화면 */
 (function () {
-  var S = { meta: null, cities: [], days: [], tasks: [], watch: [], log: [], briefs: [], props: [], reqs: [], places: [], pins: [], tours: [], shops: [], weather: [], bookings: [], legs: [] };
-  var MAP = { cities: 'cities', days: 'days', tasks: 'tasks', watch: 'watch', log: 'log', briefs: 'briefs', props: 'proposals', reqs: 'requests', places: 'places', pins: 'pins', tours: 'tours', shops: 'shops', weather: 'weather', bookings: 'bookings', legs: 'legs' };
-  var loaded = false, view = 'home', editing = null, sel = null, recTab = 'tour', openDays = {}, bkEdit = null, lastMode = null, dayEdit = null, taskEdit = null, foldOpen = {}, undoArm = null;
+  var S = { meta: null, cities: [], days: [], tasks: [], watch: [], log: [], briefs: [], props: [], reqs: [], places: [], pins: [], tours: [], shops: [], weather: [], bookings: [], legs: [], files: [], expenses: [], events: [], eats: [] };
+  var MAP = { cities: 'cities', days: 'days', tasks: 'tasks', watch: 'watch', log: 'log', briefs: 'briefs', props: 'proposals', reqs: 'requests', places: 'places', pins: 'pins', tours: 'tours', shops: 'shops', weather: 'weather', bookings: 'bookings', legs: 'legs', files: 'files', expenses: 'expenses', events: 'events', eats: 'restaurants' };
+  var loaded = false, view = 'home', editing = null, sel = null, openDays = {}, bkEdit = null, lastMode = null, dayEdit = null, taskEdit = null, foldOpen = {}, undoArm = null;
+  var discTab = 'now', discCity = '', discFav = false, walletSeg = 'tix', upOpen = null, upBusy = '', expEdit = null, ov = null, pushInfo = { state: '' };
+  var PREVIEW = (function () { try { return localStorage.getItem('hm.preview') || ''; } catch (e) { return ''; } })();
   var DOW = ['일', '월', '화', '수', '목', '금', '토'];
   var KIND = { see: '🏛️', eat: '🍽️', stay: '🏨', shop: '🛍️', night: '🌙', move: '🚆' };
   var BK = [['stay', '🏨', '숙소'], ['move', '🚆', '교통'], ['ticket', '🎟️', '입장권'], ['tour', '🚌', '투어'], ['eat', '🍽️', '식당'], ['etc', '📌', '기타']];
   var IATA = { '인천': 'ICN', '리스본': 'LIS', '포르투': 'OPO', '세비야': 'SVQ', '그라나다': 'GRX', '바르셀로나': 'BCN', '마드리드': 'MAD' };
   var LEGACY = (window.HM_CONFIG && window.HM_CONFIG.legacyNames) || {};
-  var VIEWS = ['home', 'days', 'map', 'tasks', 'rec'];
+  var VIEWS = ['home', 'days', 'map', 'wallet', 'discover', 'tasks', 'settings'];
+  var TABS = ['home', 'days', 'map', 'wallet', 'discover'];
   function bkIcon(k) { for (var i = 0; i < BK.length; i++) if (BK[i][0] === k) return BK[i][1]; return '📌'; }
   /* 교통 예약 중 편명(KE921, FR5467 같은)으로 시작하면 비행기 */
   function bkIco(b) { return b.kind === 'move' && /^[A-Z0-9]{2}\s?\d{2,4}\b/.test(b.title || '') ? '✈️' : bkIcon(b.kind); }
@@ -16,7 +19,7 @@
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function pd(s) { if (!s) return null; var p = String(s).slice(0, 10).split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
-  function today() { var d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function today() { if (PREVIEW) return pd(PREVIEW); var d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
   function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function md(s) { var d = pd(s); return d ? (d.getMonth() + 1) + '/' + d.getDate() + ' (' + DOW[d.getDay()] + ')' : ''; }
   function diff(s) { var d = pd(s); return d ? Math.round((d - today()) / 86400000) : null; }
@@ -79,6 +82,7 @@
         (first && last ? esc(first.name) + '에서 ' + esc(last.name) + '까지 ' + nights + '박' : '') + '</div></div>' +
         '<div class="stub"><span class="n">' + (a > 0 ? a : (b >= 0 ? '✈' : '♥')) + '</span><span class="l">' + (a > 0 ? '일 남았어요' : (b >= 0 ? '여행 중' : '다녀왔어요')) + '</span></div></div>';
     }
+    var tp = todayPanel(); if (tp) return tp;
     var w = wxFor(t);
     return '<div class="ticket today"><div class="main"><div class="t-route"><div><div class="t-code" style="font-size:26px">' + esc(dToday.city) + '</div><div class="t-city">' + esc(dToday.headline || '') + '</div></div></div>' +
       '<ul class="today-list">' + (dToday.items || []).slice(0, 5).map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>' +
@@ -99,7 +103,8 @@
         (rq ? '<div class="small" style="margin-top:6px">다음 점검 때 일정에 반영돼요.</div>' : '<div class="acts"><button class="btn fill pbtn" data-id="' + esc(p.id) + '" data-act="apply"' + (canEdit() ? '' : ' disabled') + '>일정에 반영</button><button class="btn pbtn" data-id="' + esc(p.id) + '" data-act="hold"' + (canEdit() ? '' : ' disabled') + '>보류</button></div>') + '</div>';
     });
     var wk = sortedTasks().filter(function (x) { var n = diff(x.due); return !x.done && n !== null && n <= 7; }).slice(0, 6);
-    h += '<h2><span class="em">⏰</span>이번 주 할 일</h2>';
+    var openN = S.tasks.filter(function (x) { return !x.done; }).length;
+    h += '<div class="h2row"><h2><span class="em">⏰</span>이번 주 할 일</h2><button type="button" class="more" data-go="tasks">전체 ' + openN + '개 ›</button></div>';
     h += wk.length ? '<div class="card">' + wk.map(taskRow).join('') + '</div>' : '<div class="empty">' + (loaded ? '이번 주에 급한 일은 없어요.' : '불러오는 중') + '</div>';
     h += '<h2><span class="em">🎫</span>예약 현황</h2><p class="hint">예약을 마치면 여기에 등록하세요. 일정 탭의 그날 카드에도 바로 보여요.</p><div id="bkArea"></div>';
     h += '<h2><span class="em">📮</span>도시 스탬프</h2><p class="hint">스탬프를 누르면 숙소를 입력할 수 있어요.</p><div class="stamps">';
@@ -141,7 +146,7 @@
     h += list.length ? '<div class="card">' + list.map(function (b) {
       var d = pd(b.date), past = (b.end || b.date) < t;
       return '<button class="bk' + (past ? ' past' : '') + '" data-bk="' + esc(b.id) + '"><span class="bd">' + (d ? (d.getMonth() + 1) + '/' + d.getDate() + '<br>' + DOW[d.getDay()] : '') + '</span>' +
-        '<span class="bt">' + bkIco(b) + ' ' + esc(b.title) + '</span><span class="bm">' + [b.time, b.end ? ('~ ' + md(b.end)) : '', b.place].filter(Boolean).map(esc).join(', ') + (b.memo ? (' — ' + esc(b.memo)) : '') + '</span></button>';
+        '<span class="bt">' + bkIco(b) + ' ' + esc(b.title) + (bookingFiles(b.id).length ? ' <span class="clip">📎' + bookingFiles(b.id).length + '</span>' : '') + '</span><span class="bm">' + [b.time, b.end ? ('~ ' + md(b.end)) : '', b.place].filter(Boolean).map(esc).join(', ') + (b.memo ? (' — ' + esc(b.memo)) : '') + '</span></button>';
     }).join('') + '</div>'
       : '<div class="empty">' + (loaded ? '아직 등록한 예약이 없어요.' : '불러오는 중') + '</div>';
     if (canEdit()) h += '<div class="acts"><button class="btn fill" id="bkadd" type="button">＋ 예약 등록</button></div>';
@@ -160,6 +165,7 @@
       '<label for="bkl">링크 (선택)</label><input class="inp" id="bkl" type="url" maxlength="400" placeholder="https://" value="' + esc(b.link || '') + '">' +
       (bkEdit === 'new' && opts ? '<label for="bkx">같이 완료할 할 일 (선택)</label><select id="bkx"><option value="">선택 안 함</option>' + opts + '</select>' : '') +
       (bkEdit !== 'new' && safeUrl(b.link) ? '<p class="small" style="margin-top:8px"><a href="' + esc(safeUrl(b.link)) + '" target="_blank" rel="noopener">저장된 링크 열기</a></p>' : '') +
+      (bkEdit !== 'new' ? '<p class="small" style="margin-top:8px">📎 티켓·바우처 파일 ' + bookingFiles(b.id).length + '개 · <button type="button" class="linkbtn" data-wadd="' + esc(b.id) + '">지갑에 파일 올리기</button></p>' : '') +
       '<div class="acts"><button class="btn fill" type="submit">저장</button><button class="btn" type="button" id="bkcancel">닫기</button>' + (bkEdit !== 'new' ? '<button class="btn del" type="button" id="bkdel">삭제</button>' : '') + '</div></form>';
   }
 
@@ -368,7 +374,7 @@
       '<div class="acts"><button class="btn fill" type="submit">저장</button><button class="btn" type="button" id="tfcancel">닫기</button><button class="btn del" type="button" id="tfdel">삭제</button></div></form>';
   }
   function tasks() {
-    var h = '<h2 style="margin-top:6px"><span class="em">✅</span>할 일</h2>' + (canEdit() ? '<p class="hint">제목을 누르면 고치거나 지울 수 있어요.</p>' : ''), cur = '', buf = [];
+    var h = '<button type="button" class="back" data-go="home">‹ 홈</button><h2 style="margin-top:6px"><span class="em">✅</span>할 일</h2>' + (canEdit() ? '<p class="hint">제목을 누르면 고치거나 지울 수 있어요.</p>' : ''), cur = '', buf = [];
     var open = sortedTasks().filter(function (t) { return !t.done; }), done = sortedTasks().filter(function (t) { return t.done; });
     function flush() { if (buf.length) { h += '<div class="card">' + buf.join('') + '</div>'; buf = []; } }
     open.forEach(function (t) { var d = pd(t.due), k = d ? (d.getMonth() + 1) + '월' : '날짜 없음'; if (k !== cur) { flush(); h += '<div class="month">' + esc(k) + '</div>'; cur = k; } buf.push(taskRow(t)); });
@@ -386,40 +392,497 @@
     h += '<details class="fold"' + foldAttr('log') + '><summary>📜 바뀐 내용</summary>' + lg.map(function (l) {
       return '<div class="rq"><span class="small">' + esc(md(l.at)) + (l.undone ? ' · 되돌림' : '') + '</span><div>' + esc(l.text) + '</div>' + (l.batch && !l.undone ? undoBtn(l.batch) : '') + '</div>';
     }).join('') + '</details>';
-    var me = Store.me();
-    h += '<div class="acct small">' + (Store.status.mode === 'demo' ? '데모 모드: 바꾼 내용은 이 기기에만 저장돼요.' : (me && me.email ? esc(me.name || me.email) + ' (' + esc(me.email) + ')로 로그인 · <button class="linkbtn" id="logout" type="button">로그아웃</button>' : '')) + '</div>';
+    h += '<p class="acct small">로그인 정보와 알림은 오른쪽 위 ⚙️ 설정에 있어요.</p>';
     $('v-tasks').innerHTML = h;
   }
 
-  /* ---------- 추천 ---------- */
-  function rec() {
-    var h = '<h2 style="margin-top:6px"><span class="em">🎒</span>추천</h2><div class="seg" role="tablist">' +
-      [['tour', '🚌 투어'], ['shop', '🛍️ 쇼핑'], ['wx', '☀️ 날씨']].map(function (x) { return '<button role="tab" data-rt="' + x[0] + '" aria-selected="' + (recTab === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>';
-    if (recTab === 'tour') {
-      h += '<p class="hint" style="margin-top:12px">일정에 맞춰 고른 일일 투어예요. 가격과 후기 수는 확인한 날 기준이라 예약 전에 다시 보세요.</p>';
-      h += S.tours.length ? S.tours.slice().sort(byOrder).map(function (r) {
-        return '<div class="card rec"><div class="top2"><span class="tl">' + esc(r.title) + '</span><span class="chip ' + (r.fit === '강력 추천' ? 'ora' : 'blue') + '">' + esc(r.fit || '추천') + '</span></div>' +
-          '<div class="meta">' + esc(r.city) + (r.day ? ', ' + esc(md(r.day)) : '') + (r.platform ? ', ' + esc(r.platform) : '') + (r.price ? ', ' + esc(r.price) : '') + '</div><div class="why">' + esc(r.why || '') + '</div>' +
-          (safeUrl(r.url) ? '<div class="acts"><a class="btn" target="_blank" rel="noopener" href="' + esc(r.url) + '">상품 보기</a></div>' : (r.search ? '<div class="meta">앱에서 검색: ' + esc(r.search) + '</div>' : '')) + '</div>';
-      }).join('') : '<div class="empty">추천 투어가 아직 없어요.</div>';
-    } else if (recTab === 'shop') {
-      h += '<p class="hint" style="margin-top:12px">도시별로 사 올 만한 것과 살 곳이에요.</p>';
-      var cities = []; S.shops.slice().sort(byOrder).forEach(function (s) { if (cities.indexOf(s.city) < 0) cities.push(s.city); });
-      cities.forEach(function (c) {
-        h += '<div class="month">' + esc(c) + '</div>' + S.shops.filter(function (s) { return s.city === c; }).sort(byOrder).map(function (s) {
-          return '<div class="card rec"><div class="tl">' + esc(s.item) + '</div><div class="why">' + esc(s.why || '') + '</div>' + (s.where ? '<div class="meta">📍 ' + (s.q ? '<a target="_blank" rel="noopener" href="' + esc(gmap(s.q)) + '">' + esc(s.where) + '</a>' : esc(s.where)) + '</div>' : '') + '</div>';
-        }).join('');
+  /* ---------- 여행 중 '오늘' ---------- */
+  function inTrip() { var m = S.meta || {}, t = ymd(today()); return !!(m.depart && m.ret && t >= m.depart && t <= m.ret); }
+  function parseItem(s) {
+    var str = String(s).trim(), m = /^(\d{1,2}):(\d{2})(?:\s*[~–-]\s*\d{1,2}:\d{2})?\s+(.*)$/.exec(str);
+    return m ? { t: (+m[1]) * 60 + (+m[2]), hh: m[1].padStart(2, '0') + ':' + m[2], text: m[3], label: str } : { t: null, label: str };
+  }
+  function nowMin() { var d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
+  function durTxt(m) { if (m < 1) return '곧'; var h = Math.floor(m / 60), r = m % 60; return (h ? h + '시간' + (r ? ' ' : '') : '') + (r ? r + '분' : '') + ' 뒤'; }
+  function fileThumbsFor(date) {
+    var ids = S.bookings.filter(function (b) { return b.date === date; }).map(function (b) { return b.id; });
+    return S.files.filter(function (f) { return f.booking && ids.indexOf(f.booking) >= 0; });
+  }
+  function todayPanel() {
+    var t = ymd(today()), d = S.days.filter(function (x) { return x.date === t; })[0];
+    if (!d) return '';
+    var items = (d.items || []).map(parseItem), now = nowMin();
+    var timed = items.filter(function (x) { return x.t != null; });
+    var next = timed.filter(function (x) { return x.t > now; })[0], cur = timed.filter(function (x) { return x.t <= now; }).slice(-1)[0];
+    var w = wxFor(t), f = fx(), tix = fileThumbsFor(t), lg = S.legs.filter(function (l) { return l.date === t; }).sort(byOrder);
+    var n = Math.round((today() - pd(S.meta.depart)) / 86400000) + 1;
+    var h = '<section class="todayp" aria-label="오늘"><div class="tp-h"><span class="tp-day">' + n + '일째</span><span class="tp-d">' + esc(md(t)) + '</span>' + (PREVIEW ? '<button class="chip ora" data-go="settings">미리보기 중</button>' : '') + '</div>' +
+      '<b class="tp-city disp">' + esc(d.city) + '</b>' + (d.headline ? '<div class="small">' + esc(d.headline) + '</div>' : '');
+    if (next) h += '<div class="tp-next"><span class="tp-lab">다음</span><span><b>' + esc(next.hh) + '</b> ' + esc(next.text) + '</span><span class="tp-in">' + durTxt(next.t - now) + '</span></div>';
+    else if (timed.length) h += '<div class="tp-next done"><span class="tp-lab">오늘</span><span>시간 정해진 일정은 다 지났어요.</span></div>';
+    h += '<ol class="tp-list">' + items.map(function (x) {
+      var cls = x === cur ? 'cur' : (x.t != null && x.t < now ? 'past' : '');
+      return '<li' + (cls ? ' class="' + cls + '"' : '') + '>' + (x.hh ? '<b>' + esc(x.hh) + '</b> ' + esc(x.text) : esc(x.label)) + '</li>';
+    }).join('') + '</ol>';
+    if (tix.length) h += '<div class="tp-sec"><span class="tp-lab">오늘 쓸 티켓</span><div class="tp-tix">' + tix.map(function (f) { return '<button type="button" class="tix" data-wopen="' + esc(f.id) + '">' + thumb(f) + '<span>' + esc(f.label) + '</span></button>'; }).join('') + '</div></div>';
+    if (lg.length) h += '<div class="tp-sec"><span class="tp-lab">이동</span><div class="mlegs">' + lg.map(function (l) { var m = MODE[l.mode] || MODE.transit; return '<a class="mleg" target="_blank" rel="noopener" href="' + esc(legUrl(l)) + '"><span>' + m[0] + ' ' + esc(l.title) + '</span><span class="go">길찾기</span></a>'; }).join('') + '</div></div>';
+    h += '<div class="tp-meta">' + (w ? '<span>' + (w.fc ? '🌤️ ' : '🌡️ 평년 ') + esc(w.txt.replace('평년 ', '')) + '</span>' : '') + (f ? '<span>💶 1€ = ' + won(f.rate) + '원</span>' : '') + '</div>';
+    h += '<div class="acts"><button type="button" class="btn fill" data-ov="driver">🚕 기사님께 보여주기</button><button type="button" class="btn" data-ov="sos">🆘 비상 연락처</button></div></section>';
+    return h;
+  }
+
+  /* ---------- 지갑: 티켓·서류 ---------- */
+  var WCACHE = 'wallet-files', wUrl = {}, wState = { total: 0, have: 0, busy: false, err: '', persist: null, sig: '' };
+  function wKey(path) { return new Request(new URL('__w/' + path, location.href.split('#')[0]).href); }
+  function wGet(path) {
+    if (!('caches' in window)) return Promise.resolve(null);
+    return caches.open(WCACHE).then(function (c) { return c.match(wKey(path)); }).then(function (r) { return r ? r.blob() : null; }).catch(function () { return null; });
+  }
+  function wPut(path, blob) {
+    if (!('caches' in window)) return Promise.resolve();
+    return caches.open(WCACHE).then(function (c) { return c.put(wKey(path), new Response(blob, { headers: { 'Content-Type': blob.type || 'application/octet-stream' } })); });
+  }
+  function filePaths(f) { return (f.pages || []).slice(); }
+  function walletStatusRender() { var a = $('wst'); if (a) a.innerHTML = walletStatusHtml(); var b = $('setWst'); if (b) b.innerHTML = walletStatusHtml(); }
+  function askPersist() {
+    if (!(navigator.storage && navigator.storage.persist)) return;
+    navigator.storage.persisted().then(function (p) { return p || navigator.storage.persist(); }).then(function (p) { wState.persist = !!p; walletStatusRender(); }).catch(function () {});
+  }
+  function walletSync(force) {
+    var need = [];
+    S.files.forEach(function (f) { filePaths(f).forEach(function (p) { need.push(p); }); });
+    var sig = need.join('|');
+    if (!force && sig === wState.sig && wState.have >= wState.total) return;
+    if (wState.busy) { wState.again = true; return; }
+    wState.sig = sig; wState.total = need.length; wState.err = '';
+    if (!('caches' in window)) return;
+    wState.busy = true;
+    caches.open(WCACHE).then(function (c) {
+      return c.keys().then(function (keys) {
+        var base = wKey('').url, have = {};
+        keys.forEach(function (k) { var p = k.url.slice(base.length); if (need.indexOf(p) < 0) c['delete'](k); else have[p] = 1; });
+        var missing = need.filter(function (p) { return !have[p]; });
+        wState.have = need.length - missing.length; walletStatusRender();
+        if (!missing.length || !navigator.onLine || !Store.canFiles() || Store.status.mode === 'demo') return;
+        return missing.reduce(function (pr, p) {
+          return pr.then(function () {
+            return Store.fileGet(p).then(function (b) { return c.put(wKey(p), new Response(b, { headers: { 'Content-Type': b.type || 'image/jpeg' } })); })
+              .then(function () { wState.have++; walletStatusRender(); }, function (e) { wState.err = (e && e.message) || '받지 못함'; });
+          });
+        }, Promise.resolve());
       });
-      if (!cities.length) h += '<div class="empty">쇼핑 목록이 아직 없어요.</div>';
-    } else {
-      h += '<p class="hint" style="margin-top:12px">출발 2주 전부터 자동 점검이 실제 예보로 바꿔 넣어요. 그 전엔 12월 평년 기온이에요.</p>';
-      h += S.weather.length ? S.weather.slice().sort(byOrder).map(function (w) {
-        return '<div class="card"><div class="wx"><div><b class="disp" style="font-size:18px">' + esc(w.city) + '</b><div class="small">' + esc(w.dates || '') + '</div></div><div class="tmp">' + esc(w.avgHi) + '° / ' + esc(w.avgLo) + '°</div></div>' +
-          '<div style="font-size:14px;margin-top:4px">' + esc(w.tip || '') + '</div>' +
-          ((w.forecast && w.forecast.length) ? '<div class="fc">' + w.forecast.map(function (f) { return '<div>' + esc(md(f.date).split(' ')[0]) + '<br>' + esc(f.sky || '') + '<br>' + esc(f.hi) + '°/' + esc(f.lo) + '°</div>'; }).join('') + '</div>' : '<div class="small" style="margin-top:4px">예보는 출발 2주 전부터</div>') + '</div>';
-      }).join('') : '<div class="empty">날씨 정보가 아직 없어요.</div>';
+    }).then(function () {
+      wState.busy = false; walletStatusRender(); if (wState.total) askPersist();
+      if (wState.again) { wState.again = false; walletSync(); }
+    }, function () { wState.busy = false; });
+  }
+  function walletStatusHtml() {
+    var off = !navigator.onLine && Store.status.mode !== 'demo';
+    var ps = wState.persist === true ? ' 이 폰이 지우지 않도록 보관 요청도 받아들여졌어요.' : '';
+    if (!wState.total) return '<div class="wst">📴 티켓을 올리면 이 폰에도 저장돼서 인터넷 없이 열려요.</div>';
+    if (wState.have >= wState.total) return '<div class="wst ok">✓ 오프라인 준비 완료: 파일 ' + wState.total + '개가 이 폰에 저장돼 있어요.' + ps + '</div>';
+    return '<div class="wst">' + (off ? '인터넷이 연결되면 나머지를 받아요. ' : '') + '파일 ' + wState.total + '개 중 ' + wState.have + '개 저장됨' + (wState.busy && !off ? ', 받는 중…' : '') + (wState.err && !off ? ' (' + esc(wState.err) + ')' : '') + '</div>';
+  }
+  function wImg(path) {
+    if (wUrl[path]) return Promise.resolve(wUrl[path]);
+    return wGet(path).then(function (b) {
+      if (b) return b;
+      if (navigator.onLine && Store.canFiles() && Store.status.mode !== 'demo') return Store.fileGet(path).then(function (bb) { wPut(path, bb); return bb; }, function () { return null; });
+      return null;
+    }).then(function (b) { if (!b) return null; wUrl[path] = URL.createObjectURL(b); return wUrl[path]; });
+  }
+  function hydrate(root) {
+    Array.prototype.forEach.call((root || document).querySelectorAll('img[data-wpath]:not([src])'), function (img) {
+      wImg(img.dataset.wpath).then(function (u) { if (u) img.src = u; else { var t = img.closest('.wthumb'); if (t) t.classList.add('miss'); else img.replaceWith(Object.assign(document.createElement('p'), { className: 'miss-txt', textContent: '이 폰에 아직 없어요. 인터넷이 연결되면 받아요.' })); } });
+    });
+  }
+  function bookingFiles(bid) { return S.files.filter(function (f) { return f.booking === bid; }).sort(function (a, b) { return (a.at || '') < (b.at || '') ? -1 : 1; }); }
+  function thumb(f) {
+    var p = (f.pages || [])[0];
+    return '<span class="wthumb">' + (p ? '<img data-wpath="' + esc(p) + '" alt="">' : '') + (f.kind === 'pdf' ? '<i>PDF' + (f.pageCount > 1 ? ' ' + f.pageCount + '쪽' : '') + '</i>' : '') + '</span>';
+  }
+  function memberList() { var m = Store.members(); return Object.keys(m).map(function (e) { return { email: e, name: m[e] || e }; }); }
+  function whoShort(w) { if (!w || w === 'both') return '둘 다'; var m = Store.members(); return m[w] || w.split('@')[0]; }
+  function wallet() {
+    var h = '<h2 style="margin-top:6px"><span class="em">👛</span>지갑</h2><div class="seg" role="tablist">' +
+      [['tix', '🎫 티켓·서류'], ['exp', '💶 경비']].map(function (x) { return '<button role="tab" data-wseg="' + x[0] + '" aria-selected="' + (walletSeg === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>';
+    h += walletSeg === 'exp' ? expensesView() : walletTix();
+    $('v-wallet').innerHTML = h;
+    hydrate($('v-wallet'));
+  }
+  function wRow(b) {
+    var fs = bookingFiles(b.id), d = pd(b.date);
+    return '<div class="wrow"><span class="bd">' + (d ? (d.getMonth() + 1) + '/' + d.getDate() + '<br>' + DOW[d.getDay()] : '') + '</span><div class="wr-b"><div class="bt">' + bkIco(b) + ' ' + esc(b.title) + '</div>' +
+      '<div class="bm">' + [b.time, b.place].filter(Boolean).map(esc).join(', ') + '</div><div class="wfiles">' +
+      fs.map(function (f) { return '<button type="button" class="wf" data-wopen="' + esc(f.id) + '" aria-label="' + esc(f.label) + ' 열기">' + thumb(f) + '<span class="wfl">' + esc(f.label) + '</span></button>'; }).join('') +
+      (canEdit() ? (fs.length ? '<button type="button" class="wf add" data-wadd="' + esc(b.id) + '" aria-label="' + esc(b.title) + '에 파일 추가"><span class="wthumb">＋</span><span class="wfl">더 올리기</span></button>'
+        : '<button type="button" class="wadd-s" data-wadd="' + esc(b.id) + '" aria-label="' + esc(b.title) + '에 파일 추가">＋ 티켓·바우처 올리기</button>') : '') + '</div></div></div>';
+  }
+  function walletTix() {
+    var t = ymd(today()), h = '<div id="wst">' + walletStatusHtml() + '</div>';
+    if (canEdit()) h += '<div class="acts" style="margin:10px 0 4px"><button type="button" class="btn fill" data-wadd="">＋ 티켓·서류 올리기</button></div>';
+    if (upOpen) h += uploadForm();
+    var bks = bkSorted(), up = bks.filter(function (b) { return (b.end || b.date) >= t; }), past = bks.filter(function (b) { return (b.end || b.date) < t; });
+    h += '<h3 class="sub">다가오는 예약</h3>' + (up.length ? '<div class="card">' + up.map(wRow).join('') + '</div>' : '<div class="empty">' + (loaded ? '다가오는 예약이 없어요.' : '불러오는 중') + '</div>');
+    var docs = S.files.filter(function (f) { return !f.booking; }).sort(function (a, b) { return (a.at || '') < (b.at || '') ? -1 : 1; });
+    h += '<h3 class="sub">서류</h3><p class="hint">여권 사본, 보험증서, eSIM QR처럼 예약과 상관없는 것.</p>' +
+      (docs.length ? '<div class="wdocs">' + docs.map(function (f) { return '<button type="button" class="wdoc" data-wopen="' + esc(f.id) + '">' + thumb(f) + '<span>' + esc(f.label) + '<small>' + esc(whoShort(f.who)) + '</small></span></button>'; }).join('') + '</div>' : '<div class="empty">아직 없어요.</div>');
+    if (past.length) h += '<details class="fold"' + foldAttr('wpast') + '><summary>지난 예약 ' + past.length + '개</summary>' + past.map(wRow).join('') + '</details>';
+    h += '<p class="hint" style="margin-top:14px">열린 이미지를 길게 누르면 사진첩에도 저장돼요. 항공권은 항공사 앱에서 Apple 지갑에 넣어 두면 더 든든해요.</p>';
+    return h;
+  }
+  function radios(name, opts, cur) {
+    return '<div class="chipsel">' + opts.map(function (o) { return '<label class="cs"><input type="radio" name="' + name + '" value="' + esc(o[0]) + '"' + (o[0] === cur ? ' checked' : '') + '><span>' + esc(o[1]) + '</span></label>'; }).join('') + '</div>';
+  }
+  function uploadForm() {
+    var bks = bkSorted();
+    return '<form class="edit" id="wupf"><b class="disp">티켓·서류 올리기</b>' +
+      '<label for="wfile">파일 (PDF, 사진, 스크린샷 · 여러 개 가능)</label><input class="inp" type="file" id="wfile" accept="image/*,application/pdf" multiple required>' +
+      '<label for="wbk">어느 예약?</label><select id="wbk"><option value="">예약과 별개 (서류)</option>' + bks.map(function (b) { return '<option value="' + esc(b.id) + '"' + (upOpen.booking === b.id ? ' selected' : '') + '>' + esc(smd(b.date)) + ' ' + esc(b.title) + '</option>'; }).join('') + '</select>' +
+      '<label for="wlabel">이름 (비우면 예약 이름)</label><input class="inp" id="wlabel" maxlength="60" placeholder="예: 탑승권 영욱, 여권 사본 뿡">' +
+      '<label>누구 것</label>' + radios('wwho', [['both', '둘 다']].concat(memberList().map(function (m) { return [m.email, m.name]; })), 'both') +
+      '<p class="small" id="wprog" aria-live="polite">' + esc(upBusy) + '</p>' +
+      '<div class="acts"><button class="btn fill" type="submit"' + (upBusy ? ' disabled' : '') + '>올리기</button><button class="btn" type="button" id="wupc">닫기</button></div></form>';
+  }
+  var PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.2.146/build/';
+  function loadScript(src) { return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = function () { rej(new Error('PDF 도구를 불러오지 못했어요.')); }; document.head.appendChild(s); }); }
+  function pdfLib() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    return loadScript(PDFJS + 'pdf.min.js').then(function () { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js'; return window.pdfjsLib; });
+  }
+  function toBlob(cv, type, q) { return new Promise(function (res, rej) { cv.toBlob(function (b) { if (b) res(b); else rej(new Error('이미지로 바꾸지 못했어요.')); }, type, q); }); }
+  /* PDF 쪽마다 이미지로 바꿔 둔다 (아이폰은 PDF 첫 쪽만 보이는 일이 있어서) */
+  function pdfToImages(file, onPage) {
+    return pdfLib().then(function (lib) { return file.arrayBuffer().then(function (buf) { return lib.getDocument({ data: buf }).promise; }); }).then(function (doc) {
+      var n = Math.min(doc.numPages, 8), out = [], chain = Promise.resolve();
+      for (var i = 1; i <= n; i++) (function (i) {
+        chain = chain.then(function () {
+          return doc.getPage(i).then(function (pg) {
+            var vp0 = pg.getViewport({ scale: 1 }), vp = pg.getViewport({ scale: Math.min(2.5, 1400 / vp0.width) });
+            var cv = document.createElement('canvas'); cv.width = Math.ceil(vp.width); cv.height = Math.ceil(vp.height);
+            var ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+            return pg.render({ canvasContext: ctx, viewport: vp }).promise.then(function () { return toBlob(cv, 'image/jpeg', 0.9); })
+              .then(function (b) { out.push(b); cv.width = cv.height = 0; if (onPage) onPage(i, n); });
+          });
+        });
+      })(i);
+      return chain.then(function () { return { pages: out, total: doc.numPages }; });
+    });
+  }
+  function shrinkImage(file) {
+    if (file.size < 1500000 && /png|jpe?g|webp|gif/i.test(file.type)) return Promise.resolve(file);
+    if (!window.createImageBitmap) return Promise.resolve(file);
+    return createImageBitmap(file).then(function (bm) {
+      var s = Math.min(1, 2000 / Math.max(bm.width, bm.height)), cv = document.createElement('canvas');
+      cv.width = Math.round(bm.width * s); cv.height = Math.round(bm.height * s);
+      cv.getContext('2d').drawImage(bm, 0, 0, cv.width, cv.height);
+      return toBlob(cv, 'image/jpeg', 0.9);
+    }).catch(function () { return file; });
+  }
+  function setProg(t) { upBusy = t; var p = $('wprog'); if (p) p.textContent = t; var b = document.querySelector('#wupf [type=submit]'); if (b) b.disabled = !!t; }
+  function doUpload() {
+    var files = Array.prototype.slice.call(($('wfile') || {}).files || []);
+    if (!files.length) { toast('올릴 파일을 골라 주세요.'); return; }
+    if (!navigator.onLine && Store.status.mode !== 'demo') { toast('파일은 인터넷이 연결됐을 때 올릴 수 있어요.'); return; }
+    var bk = $('wbk').value || null, b = bk && S.bookings.filter(function (x) { return x.id === bk; })[0];
+    var whoEl = document.querySelector('input[name=wwho]:checked'), who = whoEl ? whoEl.value : 'both', label0 = $('wlabel').value.trim();
+    var done = 0;
+    var chain = files.reduce(function (pr, f, idx) {
+      return pr.then(function () {
+        var id = Store.newId(), isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+        var tag = (files.length > 1 ? '(' + (idx + 1) + '/' + files.length + ') ' : '');
+        setProg(tag + (isPdf ? 'PDF를 이미지로 바꾸는 중…' : '사진 준비 중…'));
+        var prep = isPdf ? pdfToImages(f, function (i, n) { setProg(tag + 'PDF ' + i + '/' + n + '쪽 바꾸는 중…'); }) : shrinkImage(f).then(function (x) { return { pages: [x], total: 1 }; });
+        return prep.then(function (r) {
+          var paths = r.pages.map(function (pb, k) { return id + '/p' + (k + 1) + (/png/.test(pb.type) ? '.png' : /webp/.test(pb.type) ? '.webp' : /gif/.test(pb.type) ? '.gif' : '.jpg'); });
+          setProg(tag + '올리는 중…');
+          var ups = r.pages.reduce(function (q, pb, k) { return q.then(function () { return Store.fileUp(paths[k], pb, pb.type || 'image/jpeg').then(function () { return wPut(paths[k], pb); }); }); }, Promise.resolve());
+          if (isPdf) ups = ups.then(function () { return Store.fileUp(id + '/orig.pdf', f, 'application/pdf'); });
+          return ups.then(function () {
+            var label = label0 || (b ? b.title : f.name.replace(/\.[^.]+$/, ''));
+            if (files.length > 1 && label0) label += ' ' + (idx + 1);
+            Store.set('files', id, { label: label, booking: bk, who: who, kind: isPdf ? 'pdf' : 'image', name: f.name, pages: paths, orig: isPdf ? id + '/orig.pdf' : null, pageCount: r.total || 1, size: f.size, at: nowIso(), by: myId() });
+            done++;
+          });
+        });
+      });
+    }, Promise.resolve());
+    chain.then(function () { setProg(''); upOpen = null; toast(done + '개 올렸어요. 이 폰에도 저장했어요.'); render(); walletSync(); },
+      function (e) { setProg(''); toast('올리지 못했어요: ' + ((e && e.message) || '오류')); render(); });
+  }
+  function delFile(id) {
+    var f = S.files.filter(function (x) { return x.id === id; })[0]; if (!f) return;
+    var paths = filePaths(f).concat(f.orig ? [f.orig] : []);
+    Store.remove('files', id);
+    Store.fileDel(paths).catch(function () {});
+    paths.forEach(function (p) { if (wUrl[p]) { URL.revokeObjectURL(wUrl[p]); delete wUrl[p]; } });
+    toast(savedMsg('지웠어요.')); ov = null; renderOv(); render(); walletSync(true);
+  }
+
+  /* ---------- 지갑: 경비 ---------- */
+  var CAT = [['food', '🍽️', '식비'], ['cafe', '☕', '카페·간식'], ['move', '🚆', '교통'], ['ticket', '🎟️', '입장·투어'], ['shop', '🛍️', '쇼핑'], ['stay', '🏨', '숙소'], ['etc', '📌', '기타']];
+  function catOf(k) { for (var i = 0; i < CAT.length; i++) if (CAT[i][0] === k) return CAT[i]; return CAT[CAT.length - 1]; }
+  function fx() { var f = S.meta && S.meta.fx; return (f && f.rate) ? f : null; }
+  function won(n) { return Math.round(Number(n) || 0).toLocaleString('ko-KR'); }
+  function expKrw(e) { return Number(e.krw) || (e.cur === 'KRW' ? Number(e.amount) : Math.round((Number(e.amount) || 0) * ((fx() || {}).rate || 0))); }
+  function bars(rows, total) {
+    return rows.filter(function (r) { return r[1] > 0; }).sort(function (a, b) { return b[1] - a[1]; }).map(function (r) {
+      return '<div class="bar"><span class="bl">' + r[0] + '</span><span class="bt"><i style="width:' + Math.max(3, Math.round(r[1] / total * 100)) + '%"></i></span><span class="bv">' + won(r[1]) + '원</span></div>';
+    }).join('');
+  }
+  function expensesView() {
+    var f = fx(), list = S.expenses.slice().sort(function (a, b) { var x = (a.date || '') + (a.at || ''), y = (b.date || '') + (b.at || ''); return x < y ? 1 : -1; });
+    var tot = 0, eur = 0, byCat = {}, byWho = {}, byCity = {}, tf = 0, tfn = 0;
+    list.forEach(function (e) {
+      var k = expKrw(e); tot += k; if (e.cur !== 'KRW') eur += Number(e.amount) || 0;
+      byCat[e.cat] = (byCat[e.cat] || 0) + k; byWho[e.payer] = (byWho[e.payer] || 0) + k;
+      var c = e.city || ((stayCity(e.date) || {}).name) || '여행 전·기타'; byCity[c] = (byCity[c] || 0) + k;
+      if (e.taxfree) { tf += k; tfn++; }
+    });
+    var h = '<div class="card exs"><div class="exs-t"><span>지금까지 쓴 돈</span><b class="disp">' + won(tot) + '원</b></div>' +
+      '<div class="small">' + list.length + '건' + (eur ? ' · 유로로 쓴 돈 €' + eur.toFixed(2) : '') + (f ? ' · 1€ = ' + won(f.rate) + '원 (' + esc(smd(f.date)) + ' ' + esc(f.src || '') + ')' : '') + '</div>';
+    if (tot) {
+      h += '<details class="exd"' + foldAttr('excat') + '><summary>분류별</summary>' + bars(CAT.map(function (c) { return [c[1] + ' ' + c[2], byCat[c[0]] || 0]; }), tot) + '</details>';
+      h += '<details class="exd"' + foldAttr('excity') + '><summary>도시별</summary>' + bars(Object.keys(byCity).map(function (k) { return [esc(k), byCity[k]]; }), tot) + '</details>';
+      h += '<details class="exd"' + foldAttr('exwho') + '><summary>누가 냈나</summary>' + bars(Object.keys(byWho).map(function (k) { return [esc(whoShort(k)), byWho[k]]; }), tot) + '</details>';
+      if (tfn) h += '<div class="small" style="margin-top:6px">🧾 택스리펀 받을 물건 ' + tfn + '건, ' + won(tf) + '원. 스페인은 출국 공항의 DIVA 키오스크에서 영수증·여권으로 처리해요.</div>';
     }
-    $('v-rec').innerHTML = h;
+    h += '</div>';
+    if (expEdit) h += expForm();
+    else if (canEdit()) h += '<div class="acts" style="margin:10px 0"><button type="button" class="btn fill" id="exadd">＋ 쓴 돈 적기</button></div>';
+    if (!f) h += '<p class="hint">환율을 아직 못 받았어요. 유로로 적은 금액은 환율이 들어오면 원화로 바뀌어요.</p>';
+    var cur = '', grp = '';
+    list.forEach(function (e) {
+      if (e.date !== cur) {
+        if (grp) h += grp + '</div>';
+        cur = e.date; var dsum = list.filter(function (x) { return x.date === cur; }).reduce(function (s, x) { return s + expKrw(x); }, 0);
+        h += '<div class="month exday"><span>' + esc(md(cur)) + '</span><span>' + won(dsum) + '원</span></div>'; grp = '<div class="card">';
+      }
+      var c = catOf(e.cat);
+      grp += '<button type="button" class="exr" data-exp="' + esc(e.id) + '"><span class="exi">' + c[1] + '</span><span class="exm">' + esc(e.memo || c[2]) + '<small>' + esc(whoShort(e.payer)) + ' · ' + (e.method === 'cash' ? '현금' : '카드') + (e.taxfree ? ' · 택스리펀' : '') + '</small></span><span class="exa">' +
+        (e.cur === 'KRW' ? won(e.amount) + '원' : '€' + Number(e.amount).toFixed(2) + '<small>' + won(expKrw(e)) + '원</small>') + '</span></button>';
+    });
+    if (grp) h += grp + '</div>';
+    if (!list.length) h += '<div class="empty">아직 적은 게 없어요. 여행 전에 미리 낸 돈(원화)도 적어 둘 수 있어요.</div>';
+    return h;
+  }
+  function expForm() {
+    var e = expEdit === 'new' ? { cur: 'EUR', cat: 'food', payer: myId(), method: 'card', date: (inTrip() ? ymd(today()) : ymd(new Date())) } : (S.expenses.filter(function (x) { return x.id === expEdit; })[0] || {});
+    return '<form class="edit" id="expf"><b class="disp">' + (expEdit === 'new' ? '쓴 돈 적기' : '고치기') + '</b>' +
+      '<div class="exrow"><input class="inp" id="exa" inputmode="decimal" autocomplete="off" placeholder="금액" required value="' + esc(e.amount != null ? e.amount : '') + '" aria-label="금액">' +
+      radios('excur', [['EUR', '€ 유로'], ['KRW', '₩ 원']], e.cur || 'EUR') + '</div><p class="small" id="exk"></p>' +
+      '<label>분류</label>' + radios('excat', CAT.map(function (c) { return [c[0], c[1] + ' ' + c[2]]; }), e.cat || 'food') +
+      '<label for="exm">어디에 (선택)</label><input class="inp" id="exm" maxlength="60" placeholder="예: 파스테이스 드 벨렝 에그타르트" value="' + esc(e.memo || '') + '">' +
+      '<label>누가 냈나</label>' + radios('expay', memberList().map(function (m) { return [m.email, m.name]; }), e.payer || myId()) +
+      '<label>결제</label>' + radios('exmeth', [['card', '카드'], ['cash', '현금']], e.method || 'card') +
+      '<label for="exd">날짜</label><input class="inp" type="date" id="exd" value="' + esc(e.date || '') + '" required>' +
+      '<label class="chkrow"><input type="checkbox" id="extf"' + (e.taxfree ? ' checked' : '') + '> 택스리펀 받을 물건</label>' +
+      '<div class="acts"><button class="btn fill" type="submit">저장</button><button class="btn" type="button" id="excancel">닫기</button>' + (expEdit !== 'new' ? '<button class="btn del" type="button" id="exdel">삭제</button>' : '') + '</div></form>';
+  }
+  function exPreview() {
+    var a = parseFloat(String(($('exa') || {}).value || '').replace(/,/g, '')), c = (document.querySelector('input[name=excur]:checked') || {}).value, f = fx(), el = $('exk');
+    if (!el) return;
+    el.textContent = !a ? '' : (c === 'KRW' ? '' : (f ? '≈ ' + won(a * f.rate) + '원' : '환율을 받으면 원화로 바꿔 드려요.'));
+  }
+
+  /* ---------- 발견 ---------- */
+  var DSEG = [['now', '✨ 지금 뜨는 것'], ['eat', '🍽️ 맛집'], ['tour', '🚌 투어'], ['shop', '🛍️ 쇼핑'], ['wx', '☀️ 날씨']];
+  var DHINT = {
+    now: '우리 날짜·도시에 실제로 열리는 행사만 모았어요. 매일 아침 새 소식과 바뀐 점을 확인해요.',
+    eat: '일정에 있는 식당과 대안이에요. 평점·후기 수는 확인한 날 기준이에요.',
+    tour: '일정에 맞는 투어예요. 가격·후기 수는 확인한 날 기준이라 예약 전에 다시 보세요.',
+    shop: '도시별로 사 올 만한 것과 살 곳이에요.'
+  };
+  var FIT = { '강력 추천': 'ora', '추천': 'blue', '선택': 'mute', '대안': 'mute', '필수': 'ora' };
+  function favKey(email) { return 'fav_' + String(email || '').split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase(); }
+  function favNames(x) { return memberList().filter(function (m) { return x[favKey(m.email)]; }).map(function (m) { return m.name; }); }
+  function colOf(seg) { return seg === 'now' ? 'events' : seg === 'eat' ? 'restaurants' : seg === 'tour' ? 'tours' : 'shops'; }
+  function arrOf(col) { return col === 'events' ? S.events : col === 'restaurants' ? S.eats : col === 'tours' ? S.tours : S.shops; }
+  function sortKey(x) { var c = S.cities.filter(function (k) { return k.name === x.city; })[0]; return (x.day || x.start || (c ? c.from : '9')) + String(1000 + (x.order || 0)); }
+  function dcard(x, col) {
+    var mine = !!x[favKey(myId())], fl = favNames(x), title = x.title || x.name || x.item;
+    var meta = [x.city, x.when || (x.day ? md(x.day) : ''), x.area, x.price].filter(Boolean).join(' · ');
+    var h = '<article class="card dc' + (x.status === 'new' ? ' isnew' : '') + '"><div class="top2"><span class="tl">' + esc(title) + '</span><span class="dchips">' +
+      (x.status === 'new' ? '<span class="chip ok">새로</span>' : x.status === 'changed' ? '<span class="chip ora">바뀜</span>' : '') +
+      (x.fit ? '<span class="chip ' + (FIT[x.fit] || 'blue') + '">' + esc(x.fit) + '</span>' : '') + '</span></div>';
+    if (meta) h += '<div class="meta">' + esc(meta) + '</div>';
+    if (x.hours) h += '<div class="meta">🕒 ' + esc(x.hours) + '</div>';
+    if (x.pending) h += '<div class="dl warn"><b>확인 중</b> ' + esc(x.pending) + '</div>';
+    if (x.change) h += '<div class="dl warn"><b>바뀐 점</b> ' + esc(x.change) + '</div>';
+    if (x.why) h += '<div class="why">' + esc(x.why) + '</div>';
+    if (x.what) h += '<div class="dl"><b>뭘 먹을까</b> ' + esc(x.what) + '</div>';
+    if (x.reserve) h += '<div class="dl"><b>예약</b> ' + esc(x.reserve) + '</div>';
+    if (x.pros) h += '<div class="dl"><b>👍</b> ' + esc(x.pros) + '</div>';
+    if (x.cons) h += '<div class="dl"><b>👎</b> ' + esc(x.cons) + '</div>';
+    if (x.ratings && x.ratings.length) h += '<div class="dl"><b>평점</b> ' + x.ratings.map(function (r) { return esc(r.src) + ' ' + esc(r.score) + (r.count ? ' (' + Number(r.count).toLocaleString('ko-KR') + ')' : ''); }).join(' · ') + '</div>';
+    if (x.prices && x.prices.length) h += '<div class="dl"><b>가격</b> ' + x.prices.map(function (p) { return (safeUrl(p.url) ? '<a target="_blank" rel="noopener" href="' + esc(p.url) + '">' + esc(p.src) + '</a>' : esc(p.src)) + ' ' + esc(p.price); }).join(' · ') + '</div>';
+    if (x.where) h += '<div class="dl"><b>📍</b> ' + (x.q ? '<a target="_blank" rel="noopener" href="' + esc(gmap(x.q)) + '">' + esc(x.where) + '</a>' : esc(x.where)) + '</div>';
+    if (x.tip) h += '<div class="dl"><b>💡</b> ' + esc(x.tip) + '</div>';
+    if (x.search && !safeUrl(x.url)) h += '<div class="dl"><b>🔍</b> 앱에서 검색: ' + esc(x.search) + '</div>';
+    h += '<div class="acts"><button type="button" class="btn small-btn fav' + (mine ? ' on' : '') + '" data-fav="' + col + '/' + esc(x.id) + '" aria-pressed="' + mine + '">' + (mine ? '♥' : '♡') + ' 찜' + (fl.length ? ' ' + fl.length : '') + '</button>' +
+      (col === 'shops' ? '' : x.inPlan ? '<span class="chip ok">일정에 있음</span>' : x.askedAt ? '<span class="chip blue">넣어 달라고 함</span>' : (canEdit() ? '<button type="button" class="btn small-btn" data-plan="' + col + '/' + esc(x.id) + '">＋ 일정에 넣기</button>' : '')) +
+      (safeUrl(x.url) ? '<a class="btn small-btn" target="_blank" rel="noopener" href="' + esc(x.url) + '">' + (col === 'tours' ? '상품 보기' : '자세히') + '</a>' : '') +
+      (x.q && !x.where ? '<a class="btn small-btn" target="_blank" rel="noopener" href="' + esc(gmap(x.q)) + '">지도</a>' : '') + '</div>';
+    if (fl.length) h += '<div class="small favw">♥ ' + esc(fl.join(', ')) + '</div>';
+    var src = (x.links || []).filter(function (l) { return safeUrl(l.u); });
+    if (src.length || x.checkedAt) h += '<div class="src">' + (src.length ? '출처 ' + src.map(function (l) { return '<a target="_blank" rel="noopener" href="' + esc(l.u) + '">' + esc(l.t || '링크') + '</a>'; }).join(' · ') : '') + (x.checkedAt ? (src.length ? ' · ' : '') + esc(smd(x.checkedAt)) + ' 확인' : '') + '</div>';
+    return h + '</article>';
+  }
+  function discover() {
+    var h = '<h2 style="margin-top:6px"><span class="em">🔎</span>발견</h2><div class="segs" role="tablist">' +
+      DSEG.map(function (s) { return '<button type="button" role="tab" class="sg" data-dseg="' + s[0] + '" aria-selected="' + (discTab === s[0]) + '">' + s[1] + '</button>'; }).join('') + '</div>';
+    if (discTab === 'wx') { $('v-discover').innerHTML = h + weatherView(); return; }
+    var col = colOf(discTab), all = arrOf(col).filter(function (x) { return x.status !== 'gone'; });
+    var names = routeCities().map(function (c) { return c.name; });
+    h += '<div class="fchips" role="group" aria-label="도시">' + [''].concat(names).map(function (n) { return '<button type="button" class="fchip" data-dcity="' + esc(n) + '" aria-pressed="' + (discCity === n) + '">' + (n || '전체') + '</button>'; }).join('') +
+      '<button type="button" class="fchip favf" data-dfav aria-pressed="' + discFav + '">♥ 찜한 것</button></div>';
+    h += '<p class="hint">' + DHINT[discTab] + (S.meta && S.meta.discoverAt ? ' 마지막 전체 갱신 ' + esc(md(S.meta.discoverAt)) + '.' : '') + '</p>';
+    var list = all.filter(function (x) { return !discCity || x.city === discCity; }).filter(function (x) { return !discFav || favNames(x).length; })
+      .sort(function (a, b) { var x = sortKey(a), y = sortKey(b); return x < y ? -1 : x > y ? 1 : 0; });
+    if (discTab === 'shop' && !discCity && !discFav) {
+      var groups = []; list.forEach(function (s) { if (groups.indexOf(s.city) < 0) groups.push(s.city); });
+      h += groups.map(function (g) { return '<div class="month">' + esc(g) + '</div>' + list.filter(function (s) { return s.city === g; }).map(function (x) { return dcard(x, col); }).join(''); }).join('');
+    } else h += list.map(function (x) { return dcard(x, col); }).join('');
+    if (!list.length) h += '<div class="empty">' + (discFav ? '찜한 게 아직 없어요.' : discCity ? discCity + '에는 아직 없어요.' : '아직 없어요. 다음 갱신 때 채워져요.') + '</div>';
+    h += '<form class="card linkf" id="linkf"' + (canEdit() ? '' : ' hidden') + '><b class="disp">🔗 링크 남기기</b><div class="small">인스타·유튜브·블로그에서 본 곳의 링크를 남기면 Claude가 영업일·위치·우리 동선을 확인해서 여기에 넣어 드려요.</div>' +
+      '<input class="inp" id="linku" type="url" inputmode="url" placeholder="https://" required aria-label="링크"><input class="inp" id="linkm" maxlength="100" placeholder="메모 (선택): 예) 12/30 저녁에 가 보고 싶어" aria-label="메모">' +
+      '<div class="acts"><button class="btn fill" type="submit">남기기</button></div></form>';
+    $('v-discover').innerHTML = h;
+  }
+  function weatherView() {
+    var h = '<p class="hint" style="margin-top:12px">출발 2주 전부터 자동 점검이 실제 예보로 바꿔 넣어요. 그 전엔 12월 평년 기온이에요.</p>';
+    return h + (S.weather.length ? S.weather.slice().sort(byOrder).map(function (w) {
+      return '<div class="card"><div class="wx"><div><b class="disp" style="font-size:18px">' + esc(w.city) + '</b><div class="small">' + esc(w.dates || '') + '</div></div><div class="tmp">' + esc(w.avgHi) + '° / ' + esc(w.avgLo) + '°</div></div>' +
+        '<div style="font-size:14px;margin-top:4px">' + esc(w.tip || '') + '</div>' +
+        ((w.forecast && w.forecast.length) ? '<div class="fc">' + w.forecast.map(function (f) { return '<div>' + esc(md(f.date).split(' ')[0]) + '<br>' + esc(f.sky || '') + '<br>' + esc(f.hi) + '°/' + esc(f.lo) + '°</div>'; }).join('') + '</div>' : '<div class="small" style="margin-top:4px">예보는 출발 2주 전부터</div>') + '</div>';
+    }).join('') : '<div class="empty">날씨 정보가 아직 없어요.</div>');
+  }
+  function toggleFav(ref) {
+    if (!canEdit()) { toast('로그인하면 찜할 수 있어요.'); return; }
+    var p = ref.split('/'), x = arrOf(p[0]).filter(function (i) { return i.id === p[1]; })[0]; if (!x) return;
+    var k = favKey(myId()), o = {}; o[k] = !x[k]; Store.update(p[0], p[1], o);
+  }
+  function askPlan(ref) {
+    var p = ref.split('/'), x = arrOf(p[0]).filter(function (i) { return i.id === p[1]; })[0]; if (!x) return;
+    var title = x.title || x.name, when = x.day ? md(x.day) : (x.when || '알맞은 날');
+    Store.add('requests', { text: "[발견] '" + title + "'을(를) " + when + ' 일정에 넣어 줘. (' + [x.city, x.hours, x.where].filter(Boolean).join(', ') + ')', at: nowIso(), by: myId(), status: '대기', reply: null, ref: ref });
+    Store.update(p[0], p[1], { askedAt: nowIso() });
+    toast(savedMsg('Claude에게 남겼어요. 1시간 안에 일정에 넣어요.'));
+  }
+
+  /* ---------- 겹쳐 뜨는 화면: 티켓 보기, 기사님 카드, 비상 연락처 ---------- */
+  var PHR = { es: 'Por favor, lléveme a esta dirección.', pt: 'Por favor, leve-me a esta morada.' };
+  function telHref(n) { return 'tel:' + String(n).replace(/[^\d+]/g, ''); }
+  function ovHtml() {
+    if (!ov) return '';
+    var bar = function (t, sub) { return '<div class="ovbar"><div><b>' + t + '</b>' + (sub ? '<div class="small">' + sub + '</div>' : '') + '</div><button type="button" class="ovx" data-ovclose aria-label="닫기">✕</button></div>'; };
+    if (ov.t === 'viewer') {
+      var f = S.files.filter(function (x) { return x.id === ov.id; })[0]; if (!f) return '';
+      var b = f.booking && S.bookings.filter(function (x) { return x.id === f.booking; })[0];
+      return '<div class="ov viewer" role="dialog" aria-modal="true" aria-label="' + esc(f.label) + '">' + bar(esc(f.label), b ? esc(md(b.date)) + ' ' + esc(b.title) : esc(whoShort(f.who))) +
+        '<div class="ovbody">' + filePaths(f).map(function (p) { return '<img data-wpath="' + esc(p) + '" alt="' + esc(f.label) + '">'; }).join('') + '</div>' +
+        '<div class="ovfoot">' + (f.orig && Store.status.mode !== 'demo' ? '<button type="button" class="btn small-btn" data-worig="' + esc(f.id) + '">원본 PDF</button>' : '') +
+        (canEdit() ? '<button type="button" class="btn small-btn del" data-wdel="' + esc(f.id) + '">삭제</button>' : '') + '</div></div>';
+    }
+    if (ov.t === 'driver') {
+      var cs = S.cities.slice().sort(byOrder), t = ymd(today());
+      var c0 = (ov.cid && cs.filter(function (c) { return c.id === ov.cid; })[0]) || stayCity(t) || cs.filter(function (c) { return c.from >= t; })[0] || cs[0];
+      if (!c0) return '';
+      var lang = c0.lang || (['리스본', '포르투'].indexOf(c0.name) >= 0 ? 'pt' : 'es');
+      return '<div class="ov driver" role="dialog" aria-modal="true" aria-label="기사님께 보여주기">' + bar('기사님께 보여주기', '화면을 기사님께 그대로 보여 주세요') +
+        '<div class="dv"><p class="dv-say">' + PHR[lang] + '</p><p class="dv-name">' + esc(c0.hotelLocal || c0.hotel || '') + '</p><p class="dv-addr">' + esc(c0.addr || '주소가 아직 없어요') + '</p>' +
+        (c0.tel ? '<p class="dv-tel"><a href="' + esc(telHref(c0.tel)) + '">☎ ' + esc(c0.tel) + '</a></p>' : '') + '<p class="dv-ko">' + esc(c0.name) + ' 숙소 · ' + esc(c0.hotel || '') + '</p></div>' +
+        '<div class="fchips dv-pick">' + cs.map(function (c) { return '<button type="button" class="fchip" data-driver="' + esc(c.id) + '" aria-pressed="' + (c.id === c0.id) + '">' + esc(c.name) + '</button>'; }).join('') + '</div>' +
+        (c0.addr ? '<div class="acts" style="justify-content:center"><a class="btn" target="_blank" rel="noopener" href="' + esc(gmap((c0.hotelLocal || c0.hotel) + ', ' + c0.addr)) + '">지도에서 보기</a></div>' : '') + '</div>';
+    }
+    var e = Store.get('meta', 'emergency') || {}, mine = e.mine || {};
+    if (ov.t === 'sos') {
+      var pp = S.files.filter(function (x) { return /여권/.test(x.label || ''); });
+      return '<div class="ov sos" role="dialog" aria-modal="true" aria-label="비상 연락처">' + bar('🆘 비상 연락처', e.checkedAt ? esc(smd(e.checkedAt)) + ' 확인 · 누르면 바로 전화' : '누르면 바로 전화') + '<div class="sosb">' +
+        (e.fixed || []).map(function (x) { return '<a class="sosr" href="' + esc(telHref(x.n)) + '"><span><b>' + esc(x.t) + '</b>' + (x.note ? '<small>' + esc(x.note) + '</small>' : '') + '</span><span class="sosn">' + esc(x.n) + '</span></a>'; }).join('') +
+        (e.note ? '<p class="small" style="margin:6px 2px 0">' + esc(e.note) + '</p>' : '') +
+        ((e.steps && e.steps.length) ? '<h4>여권을 잃어버리면</h4><ol class="sos-steps">' + e.steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>' : '') +
+        '<h4>우리 정보</h4>' + [['cards', '💳 카드 분실 신고'], ['insurance', '🛟 여행자 보험'], ['family', '👪 한국 가족 연락처'], ['memo', '📝 메모']].map(function (k) {
+          return '<div class="sosm"><b>' + k[1] + '</b><div>' + (mine[k[0]] ? esc(mine[k[0]]).replace(/\n/g, '<br>') : '<span class="small">아직 비어 있어요</span>') + '</div></div>';
+        }).join('') +
+        (pp.length ? '<div class="acts">' + pp.map(function (f) { return '<button type="button" class="btn small-btn" data-wopen="' + esc(f.id) + '">🛂 ' + esc(f.label) + '</button>'; }).join('') + '</div>' : '<p class="small">여권 사본을 지갑 &gt; 서류에 올려 두면 여기서 바로 열려요.</p>') +
+        (canEdit() ? '<div class="acts"><button type="button" class="btn" data-ov="sosEdit">우리 정보 고치기</button></div>' : '') + '</div></div>';
+    }
+    if (ov.t === 'sosEdit') {
+      return '<div class="ov sos" role="dialog" aria-modal="true" aria-label="우리 정보 고치기">' + bar('우리 정보 고치기', '두 사람 모두에게 보여요') + '<form class="sosb" id="sosf">' +
+        [['cards', '💳 카드 분실 신고 번호', '예: 영욱 ○○카드 해외 +82-2-…'], ['insurance', '🛟 여행자 보험', '보험사, 증권번호, 해외 긴급지원 번호'], ['family', '👪 한국 가족 연락처', ''], ['memo', '📝 메모', '']].map(function (k) {
+          return '<label for="sos-' + k[0] + '">' + k[1] + '</label><textarea class="inp" id="sos-' + k[0] + '" rows="3" maxlength="400" placeholder="' + esc(k[2]) + '">' + esc(mine[k[0]] || '') + '</textarea>';
+        }).join('') + '<div class="acts"><button class="btn fill" type="submit">저장</button><button class="btn" type="button" data-ov="sos">취소</button></div></form></div>';
+    }
+    return '';
+  }
+  function renderOv() {
+    var el = $('ov'); if (!el) return;
+    el.innerHTML = ovHtml(); el.hidden = !ov || !el.innerHTML;
+    document.body.classList.toggle('ovopen', !el.hidden);
+    if (!el.hidden) { hydrate(el); var x = el.querySelector('.ovx'); if (x) x.focus({ preventScroll: true }); }
+  }
+
+  /* ---------- 설정 ---------- */
+  var DEFPREFS = { brief: true, tasks: true, claude: true, trip: true };
+  function isIOS() { return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+  function u8(b64) { var s = b64.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; var r = atob(s), a = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) a[i] = r.charCodeAt(i); return a; }
+  function pushRefresh() {
+    if (Store.status.mode === 'demo') { pushInfo = { state: 'demo' }; settingsPush(); return; }
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) { pushInfo = { state: isIOS() && !isStandalone() ? 'need-install' : 'unsupported' }; settingsPush(); return; }
+    if (Notification.permission === 'denied') { pushInfo = { state: 'denied' }; settingsPush(); return; }
+    navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+      if (!sub) { pushInfo = { state: 'off' }; settingsPush(); return; }
+      return Store.pushGet(sub.endpoint).then(function (row) { pushInfo = row ? { state: 'on', prefs: row.prefs || DEFPREFS, endpoint: sub.endpoint } : { state: 'off', endpoint: sub.endpoint }; settingsPush(); });
+    }).catch(function () { pushInfo = { state: 'off' }; settingsPush(); });
+  }
+  function pushBoxHtml() {
+    var s = pushInfo.state;
+    if (!s) return '<p class="small">확인하는 중…</p>';
+    if (s === 'demo') return '<p class="small">데모 모드에서는 알림을 쓸 수 없어요.</p>';
+    if (s === 'need-install') return '<p class="small">아이폰은 <b>홈 화면에 추가한 아이콘</b>으로 열어야 알림을 켤 수 있어요. Safari 공유 버튼 → 홈 화면에 추가 → 그 아이콘으로 열고 여기서 켜 주세요.</p>';
+    if (s === 'unsupported') return '<p class="small">이 기기·브라우저는 알림을 지원하지 않아요.</p>';
+    if (s === 'denied') return '<p class="small">알림이 꺼져 있어요. 아이폰 설정 → 알림 → 신혼여행에서 허용한 뒤 다시 열어 주세요.</p>';
+    if (s === 'off') return '<p class="small">브리핑, 할 일 마감, Claude 반영 소식, 여행 중 출발 알림을 이 폰으로 받아요. 두 사람 각자 켜야 해요.</p><div class="acts"><button type="button" class="btn fill" id="pushOn">🔔 이 폰에서 알림 켜기</button></div>';
+    var p = pushInfo.prefs || DEFPREFS;
+    return '<p class="small" style="color:var(--oliva)">✓ 이 폰에서 알림을 받고 있어요.</p>' +
+      [['brief', '아침 브리핑 (매일 7시 50분쯤)'], ['tasks', '할 일 마감 하루 전·당일 아침 9시'], ['claude', 'Claude가 요청을 반영했을 때, 새 변경 제안'], ['trip', '여행 중: 전날 밤 9시 내일 일정, 비행·기차 3시간 전']].map(function (k) {
+        return '<label class="chkrow"><input type="checkbox" data-pp="' + k[0] + '"' + (p[k[0]] !== false ? ' checked' : '') + '> ' + k[1] + '</label>';
+      }).join('') + '<div class="acts"><button type="button" class="btn small-btn" id="pushTest">테스트 알림 보내기</button><button type="button" class="btn small-btn del" id="pushOff">이 폰 알림 끄기</button></div>';
+  }
+  function settingsPush() { var b = $('pushBox'); if (b) b.innerHTML = pushBoxHtml(); }
+  function pushEnable(btn) {
+    var key = (window.HM_CONFIG || {}).vapid; if (!key) { toast('알림 키가 설정되지 않았어요.'); return; }
+    btn.disabled = true;
+    Notification.requestPermission().then(function (perm) {
+      if (perm !== 'granted') { pushInfo = { state: perm === 'denied' ? 'denied' : 'off' }; settingsPush(); return; }
+      return navigator.serviceWorker.ready.then(function (reg) {
+        return reg.pushManager.getSubscription().then(function (s) { return s || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(key) }); });
+      }).then(function (sub) {
+        var j = sub.toJSON(), prefs = pushInfo.prefs || DEFPREFS;
+        return Store.pushSave({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, prefs).then(function () {
+          pushInfo = { state: 'on', prefs: prefs, endpoint: j.endpoint }; settingsPush(); toast('알림을 켰어요. 테스트 알림으로 확인해 보세요.');
+        });
+      });
+    }).catch(function (e) { btn.disabled = false; toast('알림을 켜지 못했어요: ' + ((e && e.message) || '오류')); });
+  }
+  function pushOff() {
+    navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+      if (!sub) return; var ep = sub.endpoint; return sub.unsubscribe().then(function () { return Store.pushDel(ep); });
+    }).then(function () { pushInfo = { state: 'off' }; settingsPush(); toast('이 폰의 알림을 껐어요.'); }, function (e) { toast('끄지 못했어요: ' + ((e && e.message) || '오류')); });
+  }
+  function settings() {
+    var me = Store.me(), m = S.meta || {}, h = '<button type="button" class="back" data-go="home">‹ 홈</button><h2><span class="em">⚙️</span>설정</h2>';
+    h += '<div class="card"><b class="disp">🔔 알림</b><div id="pushBox">' + pushBoxHtml() + '</div></div>';
+    h += '<div class="card"><b class="disp">📴 인터넷 없이 보기</b><div class="small">일정·할 일·지도 목록은 마지막으로 받은 내용이 이 폰에 저장돼요. 지갑 파일은 아래 상태를 확인하세요.</div><div id="setWst">' + walletStatusHtml() + '</div>' +
+      '<div class="acts"><button type="button" class="btn small-btn" id="wresync">지갑 파일 다시 받기</button></div></div>';
+    var opts = '', d = pd(m.depart), r = pd(m.ret);
+    if (d && r) for (var x = new Date(d); x <= r; x.setDate(x.getDate() + 1)) { var v = ymd(x); opts += '<option value="' + v + '"' + (PREVIEW === v ? ' selected' : '') + '>' + md(v) + '</option>'; }
+    h += '<div class="card"><b class="disp">🗓️ 여행 중 화면 미리 보기</b><div class="small">날짜를 고르면 그날이 된 것처럼 홈의 \'오늘\' 화면과 지갑이 보여요. 이 폰에만 적용돼요.</div>' +
+      '<select class="inp" id="pvd" style="margin-top:8px" aria-label="미리 볼 날짜"><option value="">끄기 (진짜 오늘)</option>' + opts + '</select></div>';
+    h += '<div class="card"><b class="disp">👤 계정</b><div class="small" style="margin-top:4px">' + (Store.status.mode === 'demo' ? '데모 모드: 바꾼 내용은 이 기기에만 저장돼요.' : (me && me.email ? esc(me.name || me.email) + ' (' + esc(me.email) + ') · <button class="linkbtn" id="logout" type="button">로그아웃</button>' : '')) + '</div></div>';
+    $('v-settings').innerHTML = h;
+    pushRefresh();
   }
 
   /* ---------- 로그인 ---------- */
@@ -457,12 +920,14 @@
     if (gate) { if (lastMode !== mode || !$('v-login').innerHTML) loginView(); lastMode = mode; return; }
     lastMode = mode;
     pull(); header();
-    if (view === 'home') home(); else if (view === 'days') days(); else if (view === 'map') mapView(); else if (view === 'tasks') tasks(); else rec();
+    if (view === 'home') home(); else if (view === 'days') days(); else if (view === 'map') mapView(); else if (view === 'wallet') wallet(); else if (view === 'discover') discover(); else if (view === 'tasks') tasks(); else settings();
+    var sig = S.files.map(function (f) { return (f.pages || []).join(','); }).join('|'); if (sig !== wState.sig) walletSync();
   }
-  function busy() { return !!(editing || bkEdit || dayEdit || taskEdit); }
+  function busy() { return !!(editing || bkEdit || dayEdit || taskEdit || upOpen || expEdit || (ov && ov.t === 'sosEdit')); }
   function go(v) {
     view = v; VIEWS.forEach(function (k) { $('v-' + k).hidden = (k !== v); });
-    Array.prototype.forEach.call(document.querySelectorAll('nav.tabs button'), function (b) { if (b.dataset.v === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    var hl = TABS.indexOf(v) >= 0 ? v : (v === 'tasks' ? 'home' : '');
+    Array.prototype.forEach.call(document.querySelectorAll('nav.tabs button'), function (b) { if (b.dataset.v === hl) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     try { history.replaceState(null, '', '#' + v); } catch (e) {}
     render(); window.scrollTo(0, 0);
     if (v === 'days') { var td = document.querySelector('.day.today'); if (td) td.scrollIntoView({ block: 'start' }); }
@@ -521,8 +986,73 @@
     var mc = el.closest('[data-msel]'); if (mc) { pickMap(mc.dataset.msel); return; }
     var pc = el.closest('[data-city]'); if (pc && el.closest('svg')) { pickMap('c:' + pc.dataset.city); return; }
     var pp = el.closest('[data-pin]'); if (pp) { pickMap('p:' + pp.dataset.pin); return; }
-    var rt = el.closest('[data-rt]'); if (rt) { recTab = rt.dataset.rt; rec(); return; }
+    /* 이동 */
+    var gg = el.closest('[data-go]'); if (gg) { go(gg.dataset.go); return; }
+    if (el.closest('#gear')) { go('settings'); return; }
+    /* 겹쳐 뜨는 화면 */
+    if (el.closest('[data-ovclose]')) { ov = null; renderOv(); return; }
+    var oo = el.closest('[data-ov]'); if (oo) { ov = { t: oo.dataset.ov }; renderOv(); return; }
+    var dv = el.closest('[data-driver]'); if (dv) { ov = { t: 'driver', cid: dv.dataset.driver }; renderOv(); return; }
+    /* 지갑 */
+    var ws = el.closest('[data-wseg]'); if (ws) { walletSeg = ws.dataset.wseg; expEdit = null; wallet(); return; }
+    var wa = el.closest('[data-wadd]');
+    if (wa) {
+      if (!canEdit()) { toast('로그인하면 파일을 올릴 수 있어요.'); return; }
+      upOpen = { booking: wa.dataset.wadd || '' }; walletSeg = 'tix'; bkEdit = null; ov = null; renderOv();
+      if (view !== 'wallet') go('wallet'); else wallet();
+      var uf = $('wupf'); if (uf) uf.scrollIntoView({ block: 'start', behavior: 'smooth' }); return;
+    }
+    if (el.closest('#wupc')) { upOpen = null; wallet(); return; }
+    var wo = el.closest('[data-wopen]'); if (wo) { ov = { t: 'viewer', id: wo.dataset.wopen }; renderOv(); return; }
+    var wd = el.closest('[data-wdel]');
+    if (wd) { if (!wd.dataset.sure) { wd.dataset.sure = '1'; wd.textContent = '한 번 더 누르면 삭제'; return; } delFile(wd.dataset.wdel); return; }
+    var wg = el.closest('[data-worig]');
+    if (wg) {
+      if (!navigator.onLine) { toast('원본은 인터넷이 연결됐을 때 열 수 있어요.'); return; }
+      var f0 = S.files.filter(function (x) { return x.id === wg.dataset.worig; })[0]; if (!f0 || !f0.orig) return;
+      var win = window.open('', '_blank');
+      Store.fileLink(f0.orig, 600).then(function (u) { if (win) win.location = u; else location.href = u; }, function () { if (win) win.close(); toast('원본을 열지 못했어요.'); });
+      return;
+    }
+    if (el.closest('#wresync')) { wState.sig = ''; walletSync(true); toast('지갑 파일을 다시 확인해요.'); return; }
+    /* 경비 */
+    if (el.closest('#exadd')) { expEdit = 'new'; wallet(); var ef = $('expf'); if (ef) { ef.scrollIntoView({ block: 'start' }); $('exa').focus(); } return; }
+    if (el.closest('#excancel')) { expEdit = null; wallet(); return; }
+    var xd = el.closest('#exdel');
+    if (xd) { if (!xd.dataset.sure) { xd.dataset.sure = '1'; xd.textContent = '한 번 더 누르면 삭제'; return; } Store.remove('expenses', expEdit); expEdit = null; toast(savedMsg('지웠어요.')); render(); return; }
+    var xr = el.closest('[data-exp]'); if (xr) { if (!canEdit()) return; expEdit = xr.dataset.exp; wallet(); var ef2 = $('expf'); if (ef2) ef2.scrollIntoView({ block: 'start' }); return; }
+    /* 발견 */
+    var dsg = el.closest('[data-dseg]'); if (dsg) { discTab = dsg.dataset.dseg; discover(); return; }
+    var dct = el.closest('[data-dcity]'); if (dct) { discCity = dct.dataset.dcity; discover(); return; }
+    if (el.closest('[data-dfav]')) { discFav = !discFav; discover(); return; }
+    var fv = el.closest('[data-fav]'); if (fv) { toggleFav(fv.dataset.fav); return; }
+    var pl = el.closest('[data-plan]'); if (pl) { askPlan(pl.dataset.plan); return; }
+    /* 알림 */
+    var po = el.closest('#pushOn'); if (po) { pushEnable(po); return; }
+    if (el.closest('#pushOff')) { pushOff(); return; }
+    var pt = el.closest('#pushTest');
+    if (pt) { pt.disabled = true; Store.rpc('push_test', {}).then(function () { toast('보냈어요. 몇 초 안에 와요.'); }, function (e2) { toast('보내지 못했어요: ' + ((e2 && e2.message) || '오류')); }).then(function () { pt.disabled = false; }); return; }
   });
+  document.addEventListener('change', function (e) {
+    var t = e.target; if (!t) return;
+    if (t.id === 'pvd') {
+      PREVIEW = t.value; try { if (PREVIEW) localStorage.setItem('hm.preview', PREVIEW); else localStorage.removeItem('hm.preview'); } catch (x) {}
+      toast(PREVIEW ? md(PREVIEW) + '인 것처럼 보여 드려요. 홈에서 확인하세요.' : '미리보기를 껐어요.'); render(); return;
+    }
+    if (t.dataset && t.dataset.pp && pushInfo.state === 'on') {
+      var pr = Object.assign({}, pushInfo.prefs || DEFPREFS); pr[t.dataset.pp] = t.checked; pushInfo.prefs = pr;
+      navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+        if (!sub) return; var j = sub.toJSON(); return Store.pushSave({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, pr);
+      }).then(function () { toast('알림 설정을 바꿨어요.'); }, function () { toast('바꾸지 못했어요.'); });
+      return;
+    }
+    if (t.name === 'excur') exPreview();
+  });
+  document.addEventListener('input', function (e) { if (e.target && e.target.id === 'exa') exPreview(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && ov) { ov = null; renderOv(); } });
+  window.addEventListener('hashchange', function () { var v = (location.hash || '').replace('#', ''); if (VIEWS.indexOf(v) >= 0 && v !== view) go(v); });
+  if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', function (e) { var g = e.data && e.data.go; if (g && VIEWS.indexOf(g) >= 0) go(g); });
+  window.addEventListener('online', function () { walletSync(true); });
   document.addEventListener('toggle', function (e) { var d = e.target; if (d && d.dataset && d.dataset.fold) foldOpen[d.dataset.fold] = d.open; }, true);
   document.addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('svg [role=button]')) { e.preventDefault(); e.target.dispatchEvent(new MouseEvent('click', { bubbles: true })); } });
   document.addEventListener('submit', function (e) {
@@ -538,6 +1068,29 @@
       return;
     }
     if (!canEdit()) return;
+    if (id === 'wupf') { doUpload(); return; }
+    if (id === 'expf') {
+      var amt = parseFloat(String($('exa').value).replace(/,/g, '')); if (!(amt > 0)) { toast('금액을 넣어 주세요.'); return; }
+      var curv = (document.querySelector('input[name=excur]:checked') || {}).value || 'EUR', fxr = fx();
+      var dt = $('exd').value || ymd(today()), sc = stayCity(dt);
+      var ex = { amount: amt, cur: curv, krw: curv === 'KRW' ? Math.round(amt) : (fxr ? Math.round(amt * fxr.rate) : null), rate: curv === 'KRW' ? null : (fxr ? fxr.rate : null),
+        cat: (document.querySelector('input[name=excat]:checked') || {}).value || 'etc', memo: $('exm').value.trim(),
+        payer: (document.querySelector('input[name=expay]:checked') || {}).value || myId(), method: (document.querySelector('input[name=exmeth]:checked') || {}).value || 'card',
+        date: dt, city: sc ? sc.name : '', taxfree: $('extf').checked, by: myId(), at: nowIso() };
+      if (expEdit === 'new') Store.add('expenses', ex); else { delete ex.at; ex.editedAt = nowIso(); Store.update('expenses', expEdit, ex); }
+      expEdit = null; toast(savedMsg('적었어요.')); render(); return;
+    }
+    if (id === 'linkf') {
+      var lu = $('linku').value.trim(); if (!safeUrl(lu)) { toast('https:// 로 시작하는 링크를 넣어 주세요.'); return; }
+      var lm = $('linkm').value.trim();
+      Store.add('requests', { text: '[발견 링크] ' + lu + (lm ? ' — ' + lm : ''), at: nowIso(), by: myId(), status: '대기', reply: null });
+      $('linku').value = ''; $('linkm').value = ''; toast(savedMsg('남겼어요. 1시간 안에 확인해서 발견에 넣어요.')); return;
+    }
+    if (id === 'sosf') {
+      var mine = {}; ['cards', 'insurance', 'family', 'memo'].forEach(function (k) { mine[k] = $('sos-' + k).value.trim(); });
+      Store.update('meta', 'emergency', { mine: mine, mineBy: myId(), mineAt: nowIso() });
+      ov = { t: 'sos' }; renderOv(); toast(savedMsg('저장했어요.')); return;
+    }
     if (id === 'dayf') {
       Store.update('days', e.target.dataset.id, { headline: $('dfh').value.trim(), items: lines($('dfi').value), notes: lines($('dfn').value), editedBy: myId(), editedAt: nowIso() });
       dayEdit = null; toast(savedMsg('일정을 고쳤어요.')); render(); return;
