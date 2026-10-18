@@ -450,6 +450,7 @@ body.ovopen{overflow:hidden}
 .ov.driver .fchip{background:#fff;color:#000;border-color:#ccc}
 .ov.driver .fchip[aria-pressed="true"]{background:#000;color:#fff;border-color:#000}
 .ov.driver .btn{color:#0b57d0;border-color:#0b57d0}
+.ov.driver .btn.fill{background:#0b57d0;color:#fff}
 .sosb{flex:1;overflow:auto;padding:12px 16px 20px}
 .sosr{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--card);border-radius:14px;padding:11px 14px;margin:8px 0;text-decoration:none;color:inherit;box-shadow:0 2px 0 var(--line)}
 .sosr b{display:block;font-size:15px}
@@ -461,6 +462,57 @@ body.ovopen{overflow:hidden}
 .sosm b{display:block;font-family:"Jua",sans-serif;font-weight:400;color:var(--soft);font-size:13.5px}
 .sosb label{display:block;font-size:13.5px;color:var(--soft);margin:10px 0 3px}
 .sosb textarea{width:100%;resize:vertical}
+
+/* ---------- 홈 도구 줄 ---------- */
+.tools{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 2px}
+.tools button{display:flex;flex-direction:column;align-items:center;gap:1px;background:var(--card);border:0;border-radius:14px;padding:10px 4px 9px;box-shadow:0 2px 0 var(--line);cursor:pointer;color:var(--ink);min-width:0}
+.tools .ti{font-size:22px;line-height:1.15}
+.tools b{font-family:"Jua",sans-serif;font-weight:400;font-size:15px;line-height:1.3}
+.tools small{font-size:11.5px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+/* ---------- 짐 ---------- */
+.pkseg small{font-size:12.5px;opacity:.85}
+.pkbar{height:8px;background:var(--line);border-radius:999px;overflow:hidden;margin:10px 2px 12px}
+.pkbar i{display:block;height:100%;background:var(--oliva);border-radius:999px;transition:width .3s}
+/* ---------- 회화 ---------- */
+.trow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:2px 2px 4px}
+.phr{background:var(--card);border-radius:14px;padding:10px 12px;margin:8px 0;box-shadow:0 2px 0 var(--line)}
+.ph-ko{font-size:13.5px;color:var(--soft)}
+.ph-row{display:flex;gap:10px;align-items:center;justify-content:space-between}
+.ph-t{font-size:18px;font-weight:700;line-height:1.35;font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;margin-top:2px}
+.ph-k{font-size:13px;color:var(--azul);margin-top:2px}
+.ph-n{font-size:12.5px;color:var(--soft);margin-top:7px;border-top:1.5px dashed var(--line);padding-top:5px}
+.ph-b{display:flex;gap:6px;flex:0 0 auto}
+.ico{width:42px;height:42px;border-radius:12px;border:2px solid var(--azul-2);background:var(--azul-2);color:var(--azul);font-size:18px;cursor:pointer;display:grid;place-items:center;padding:0;flex:0 0 auto}
+.ico.on{background:var(--azul);color:var(--card);border-color:var(--azul)}
+.ph-big{font-size:36px}
+/* ---------- 하루 기록·앨범 ---------- */
+.jday{margin-top:12px;border-top:1.5px dashed var(--line);padding-top:8px}
+.jhd{font-family:"Jua",sans-serif;font-size:14.5px;color:var(--soft)}
+.jent{margin:8px 0}
+.jwho{font-family:"Jua",sans-serif;font-size:13.5px;color:var(--naranja)}
+.jtxt{font-size:15px;white-space:pre-wrap;overflow-wrap:anywhere}
+.jph{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px}
+.jth{position:relative;display:block;aspect-ratio:1/1;border-radius:10px;overflow:hidden;background:var(--paper);border:1.5px solid var(--line);padding:0;cursor:pointer;margin:0}
+.jth img{width:100%;height:100%;object-fit:cover;display:block}
+.jth img.miss{visibility:hidden}
+.jadd{display:grid;place-items:center;font-size:26px;color:var(--azul);border:2px dashed var(--azul)}
+.jx{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:999px;border:0;background:rgba(0,0,0,.62);color:#fff;font-size:12px;cursor:pointer;padding:0}
+.btn.done-b{border-color:var(--oliva);color:var(--oliva)}
+.album .aday{background:var(--card);border-radius:16px;padding:12px 14px;margin:10px 0;box-shadow:0 2px 0 var(--line)}
+.ahd{display:flex;gap:12px;align-items:center}
+.ahd > div{flex:1;min-width:0}
+.album .jph{grid-template-columns:repeat(3,1fr)}
+.ov.pv .pvb{justify-content:center;background:#111;padding:0}
+.ov.pv .pvb img{max-width:100%;max-height:100%;object-fit:contain;border:0}
+.cal-steps{margin:6px 0 0;padding-left:20px}
+.calhelp{margin-top:10px;font-size:13.5px}
+.calhelp summary{cursor:pointer;color:var(--azul);font-size:13.5px}
+.sosb .jadd{display:grid;place-items:center;margin:0;font-size:26px;color:var(--azul)}
+@media print{
+  .top,.net,nav.tabs,.back,.noprint,.ico,.hint,#ptr,#toast{display:none!important}
+  body{background:#fff;color:#000}
+  .album .aday{break-inside:avoid;box-shadow:none;border:1px solid #ccc}
+}
 
 </style>
 </head>
@@ -476,6 +528,9 @@ body.ovopen{overflow:hidden}
   <section id="v-discover" hidden></section>
   <section id="v-tasks" hidden></section>
   <section id="v-settings" hidden></section>
+  <section id="v-pack" hidden></section>
+  <section id="v-talk" hidden></section>
+  <section id="v-album" hidden></section>
 </div>
 <nav class="tabs" aria-label="화면 이동"><div class="in">
   <button data-v="home" aria-current="page"><span class="ic">🏠</span>홈</button>

@@ -1,16 +1,17 @@
 /* 우리 신혼여행: 화면 */
 (function () {
-  var S = { meta: null, cities: [], days: [], tasks: [], watch: [], log: [], briefs: [], props: [], reqs: [], places: [], pins: [], tours: [], shops: [], weather: [], bookings: [], legs: [], files: [], expenses: [], events: [], eats: [] };
-  var MAP = { cities: 'cities', days: 'days', tasks: 'tasks', watch: 'watch', log: 'log', briefs: 'briefs', props: 'proposals', reqs: 'requests', places: 'places', pins: 'pins', tours: 'tours', shops: 'shops', weather: 'weather', bookings: 'bookings', legs: 'legs', files: 'files', expenses: 'expenses', events: 'events', eats: 'restaurants' };
+  var S = { meta: null, cities: [], days: [], tasks: [], watch: [], log: [], briefs: [], props: [], reqs: [], places: [], pins: [], tours: [], shops: [], weather: [], bookings: [], legs: [], files: [], expenses: [], events: [], eats: [], packing: [], phrases: [], journal: [] };
+  var MAP = { cities: 'cities', days: 'days', tasks: 'tasks', watch: 'watch', log: 'log', briefs: 'briefs', props: 'proposals', reqs: 'requests', places: 'places', pins: 'pins', tours: 'tours', shops: 'shops', weather: 'weather', bookings: 'bookings', legs: 'legs', files: 'files', expenses: 'expenses', events: 'events', eats: 'restaurants', packing: 'packing', phrases: 'phrases', journal: 'journal' };
   var loaded = false, view = 'home', editing = null, sel = null, openDays = {}, bkEdit = null, lastMode = null, dayEdit = null, taskEdit = null, foldOpen = {}, undoArm = null;
   var discTab = 'now', discCity = '', discFav = false, walletSeg = 'tix', upOpen = null, upBusy = '', expEdit = null, ov = null, pushInfo = { state: '' };
+  var packWho = null, packEdit = null, talkLang = '', talkCat = '', talkSlow = false, calInfo = { key: null, busy: false, err: '' };
   var PREVIEW = (function () { try { return localStorage.getItem('hm.preview') || ''; } catch (e) { return ''; } })();
   var DOW = ['일', '월', '화', '수', '목', '금', '토'];
   var KIND = { see: '🏛️', eat: '🍽️', stay: '🏨', shop: '🛍️', night: '🌙', move: '🚆' };
   var BK = [['stay', '🏨', '숙소'], ['move', '🚆', '교통'], ['ticket', '🎟️', '입장권'], ['tour', '🚌', '투어'], ['eat', '🍽️', '식당'], ['etc', '📌', '기타']];
   var IATA = { '인천': 'ICN', '리스본': 'LIS', '포르투': 'OPO', '세비야': 'SVQ', '그라나다': 'GRX', '바르셀로나': 'BCN', '마드리드': 'MAD' };
   var LEGACY = (window.HM_CONFIG && window.HM_CONFIG.legacyNames) || {};
-  var VIEWS = ['home', 'days', 'map', 'wallet', 'discover', 'tasks', 'settings'];
+  var VIEWS = ['home', 'days', 'map', 'wallet', 'discover', 'tasks', 'settings', 'pack', 'talk', 'album'];
   var TABS = ['home', 'days', 'map', 'wallet', 'discover'];
   function bkIcon(k) { for (var i = 0; i < BK.length; i++) if (BK[i][0] === k) return BK[i][1]; return '📌'; }
   /* 교통 예약 중 편명(KE921, FR5467 같은)으로 시작하면 비행기 */
@@ -90,7 +91,7 @@
       '<div class="stub"><span class="n">' + (1 - a) + '</span><span class="l">일째</span></div></div>';
   }
   function home() {
-    var t = ymd(today()), h = installHint() + hero();
+    var t = ymd(today()), h = installHint() + hero() + toolsRow();
     var br = S.briefs.slice().sort(function (x, y) { return (x.date || '') < (y.date || '') ? 1 : -1; })[0];
     h += '<h2><span class="em">📝</span>오늘의 브리핑</h2>';
     h += br ? '<div class="memo"><div class="d">' + esc(md(br.date)) + (diff(br.date) === 0 ? ', 오늘' : '') + '</div><h3>' + esc(br.headline || '') + '</h3>' +
@@ -122,6 +123,18 @@
     }).join('') + '</div>';
     $('v-home').innerHTML = h;
     cityEdit(); bkArea();
+  }
+  function toolsRow() {
+    var m = S.meta || {}, t = ymd(today()), after = m.ret && t > m.ret, me = myId(), pc = me ? packCount(me) : { n: 0, total: 0 };
+    var nJ = S.days.filter(function (d) { return jFor(d.date).some(jHas); }).length;
+    var tiles = [
+      after ? null : ['pack', '🧳', '짐', pc.total ? pc.n + '/' + pc.total : '체크리스트'],
+      ['talk', '💬', '회화', '소리 내 읽기'],
+      ['album', '📔', '기록', nJ ? nJ + '일' : (inTrip() ? '오늘 한 줄' : '여행 중에')],
+      after ? null : ['settings', '🗓️', '캘린더', '아이폰에 넣기', 'calCard']
+    ].filter(Boolean);
+    if (after) tiles.unshift(tiles.splice(1, 1)[0]);
+    return '<nav class="tools" aria-label="도구">' + tiles.map(function (x) { return '<button type="button" data-go="' + x[0] + '"' + (x[4] ? ' data-scroll="' + x[4] + '"' : '') + '><span class="ti">' + x[1] + '</span><b>' + x[2] + '</b><small>' + esc(x[3]) + '</small></button>'; }).join('') + '</nav>';
   }
   function cityEdit() {
     var box = $('cityEdit'); if (!box) return;
@@ -183,7 +196,7 @@
         '<div class="day-b"' + (open ? '' : ' hidden') + '>' + (dayEdit === d.id ? dayForm(d) :
         dayBk(d.date) + '<ul>' + (d.items || []).map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>' +
         placeChips(d.date) +
-        ((d.notes && d.notes.length) ? '<div class="dnote">' + d.notes.map(esc).join('<br>') + '</div>' : '') +
+        ((d.notes && d.notes.length) ? '<div class="dnote">' + d.notes.map(esc).join('<br>') + '</div>' : '') + jDayBlock(d.date) +
         (canEdit() ? '<div class="acts"><button type="button" class="btn small-btn" data-dedit="' + esc(d.id) + '">✏️ 이 날 일정 고치기</button></div>' : '')) + '</div></article>';
     });
     $('v-days').innerHTML = h;
@@ -427,7 +440,9 @@
     if (tix.length) h += '<div class="tp-sec"><span class="tp-lab">오늘 쓸 티켓</span><div class="tp-tix">' + tix.map(function (f) { return '<button type="button" class="tix" data-wopen="' + esc(f.id) + '">' + thumb(f) + '<span>' + esc(f.label) + '</span></button>'; }).join('') + '</div></div>';
     if (lg.length) h += '<div class="tp-sec"><span class="tp-lab">이동</span><div class="mlegs">' + lg.map(function (l) { var m = MODE[l.mode] || MODE.transit; return '<a class="mleg" target="_blank" rel="noopener" href="' + esc(legUrl(l)) + '"><span>' + m[0] + ' ' + esc(l.title) + '</span><span class="go">길찾기</span></a>'; }).join('') + '</div></div>';
     h += '<div class="tp-meta">' + (w ? '<span>' + (w.fc ? '🌤️ ' : '🌡️ 평년 ') + esc(w.txt.replace('평년 ', '')) + '</span>' : '') + (f ? '<span>💶 1€ = ' + won(f.rate) + '원</span>' : '') + '</div>';
-    h += '<div class="acts"><button type="button" class="btn fill" data-ov="driver">🚕 기사님께 보여주기</button><button type="button" class="btn" data-ov="sos">🆘 비상 연락처</button></div></section>';
+    var jm = jMine(t);
+    h += '<div class="acts"><button type="button" class="btn fill" data-ov="driver">🚕 기사님께 보여주기</button><button type="button" class="btn" data-ov="sos">🆘 비상 연락처</button>' +
+      (canEdit() ? '<button type="button" class="btn' + (jHas(jm) ? ' done-b' : '') + '" data-jot="' + esc(t) + '">' + (jHas(jm) ? '📔 오늘 기록 ✓' : '📔 오늘 한 줄') + '</button>' : '') + '</div></section>';
     return h;
   }
 
@@ -776,6 +791,14 @@
   function ovHtml() {
     if (!ov) return '';
     var bar = function (t, sub) { return '<div class="ovbar"><div><b>' + t + '</b>' + (sub ? '<div class="small">' + sub + '</div>' : '') + '</div><button type="button" class="ovx" data-ovclose aria-label="닫기">✕</button></div>'; };
+    if (ov.t === 'jedit') return jEditHtml();
+    if (ov.t === 'photo') return photoHtml();
+    if (ov.t === 'phrase') {
+      var ph = phraseById(ov.id), lg = ov.lang || curLang(); if (!ph) return '';
+      return '<div class="ov driver" role="dialog" aria-modal="true" aria-label="크게 보여 주기">' + bar('크게 보여 주기', esc(ph.ko)) +
+        '<div class="dv"><p class="dv-name ph-big" lang="' + (lg === 'pt' ? 'pt-PT' : 'es-ES') + '">' + esc(ph[lg]) + '</p>' + (ph[lg + 'K'] ? '<p class="dv-ko">' + esc(ph[lg + 'K']) + '</p>' : '') + '<p class="dv-ko">' + esc(ph.ko) + '</p></div>' +
+        '<div class="acts" style="justify-content:center"><button type="button" class="btn fill" data-say="' + esc(ph.id) + '">🔊 다시 듣기</button></div></div>';
+    }
     if (ov.t === 'viewer') {
       var f = S.files.filter(function (x) { return x.id === ov.id; })[0]; if (!f) return '';
       var b = f.booking && S.bookings.filter(function (x) { return x.id === f.booking; })[0];
@@ -820,11 +843,368 @@
     var el = $('ov'); if (!el) return;
     el.innerHTML = ovHtml(); el.hidden = !ov || !el.innerHTML;
     document.body.classList.toggle('ovopen', !el.hidden);
-    if (!el.hidden) { hydrate(el); var x = el.querySelector('.ovx'); if (x) x.focus({ preventScroll: true }); }
+    if (!el.hidden) { hydrate(el); jHydrate(el); var x = el.querySelector('.ovx'); if (x) x.focus({ preventScroll: true }); }
+  }
+
+  /* ---------- 짐 체크리스트 ----------
+     who: 'both'(둘 다 각자 챙김, 체크도 각자 chk_<아이디>), 'shared'(같이 쓰는 것, 한 명만 챙기면 됨), 이메일(그 사람만) */
+  var PCAT = [['doc', '🛂', '서류·돈'], ['tech', '🔌', '전자기기'], ['wear', '🧥', '옷·신발'], ['wash', '🪥', '세면·화장'], ['med', '💊', '약'], ['bag', '🎒', '가방·기타']];
+  function lid(email) { return String(email || '').split('@')[0]; }
+  function chkKey(email) { return 'chk_' + lid(email); }
+  function packFor() { var ms = memberList(); if (packWho && ms.some(function (m) { return m.email === packWho; })) return packWho; return myId() && ms.some(function (m) { return m.email === myId(); }) ? myId() : (ms[0] ? ms[0].email : myId()); }
+  function packMine(x, em) { return x.who === 'both' || (x.who && x.who !== 'shared' && x.who === em); }
+  function packDone(x, em) { return x.who === 'both' ? !!x[chkKey(em)] : !!x.done; }
+  function packCount(em) {
+    var l = S.packing.filter(function (x) { return packMine(x, em) || x.who === 'shared'; });
+    return { n: l.filter(function (x) { return packDone(x, em); }).length, total: l.length };
+  }
+  function packRow(x, em) {
+    if (packEdit === x.id) return packForm(x);
+    var d = packDone(x, em), by = x.who === 'shared' && x.done && x.doneBy ? '챙긴 사람: ' + whoShort(x.doneBy) : '';
+    return '<div class="task pk' + (d ? ' done' : '') + '"><button class="chk" role="checkbox" aria-checked="' + d + '" aria-label="' + esc(x.title) + '" data-pchk="' + esc(x.id) + '"' + (canEdit() ? '' : ' disabled') + '></button>' +
+      '<button type="button" class="tt" data-pedit="' + esc(x.id) + '"' + (canEdit() ? '' : ' disabled') + '>' + esc(x.title) + '</button><div class="tm">' +
+      (x.who !== 'both' && x.who !== 'shared' ? '<span class="who">' + esc(whoShort(x.who)) + ' 것</span>' : '') + (x.note ? '<span>' + esc(x.note) + '</span>' : '') + (by ? '<span class="who">' + esc(by) + '</span>' : '') + '</div></div>';
+  }
+  function packForm(x) {
+    var isNew = !x || x === 'new'; x = isNew ? { cat: 'bag', who: 'both' } : x;
+    var whoOpts = [['both', '둘 다 각자'], ['shared', '같이 쓰는 것 (한 명만)']].concat(memberList().map(function (m) { return [m.email, m.name + '만']; }));
+    return '<form class="edit" id="packf" data-id="' + (isNew ? '' : esc(x.id)) + '"><b class="disp">' + (isNew ? '＋ 짐 추가' : '짐 고치기') + '</b>' +
+      '<label for="pkt">무엇</label><input class="inp" id="pkt" maxlength="60" required value="' + esc(x.title || '') + '" placeholder="예: 고데기">' +
+      '<label>분류</label>' + radios('pkc', PCAT.map(function (c) { return [c[0], c[1] + ' ' + c[2]]; }), x.cat || 'bag') +
+      '<label>누가 챙기나</label>' + radios('pkw', whoOpts, x.who || 'both') +
+      '<label for="pkn">메모</label><input class="inp" id="pkn" maxlength="80" value="' + esc(x.note || '') + '">' +
+      '<div class="acts"><button class="btn fill" type="submit">' + (isNew ? '추가' : '저장') + '</button><button class="btn" type="button" id="pkcancel">닫기</button>' + (isNew ? '' : '<button class="btn del" type="button" id="pkdel">삭제</button>') + '</div></form>';
+  }
+  function packView() {
+    var em = packFor(), ms = memberList();
+    var h = '<button type="button" class="back" data-go="home">‹ 홈</button><h2 style="margin-top:6px"><span class="em">🧳</span>짐 챙기기</h2>';
+    h += '<div class="seg pkseg" role="tablist">' + ms.map(function (m) { var c = packCount(m.email); return '<button role="tab" data-pwho="' + esc(m.email) + '" aria-selected="' + (m.email === em) + '">' + esc(m.name) + (m.email === myId() ? ' (나)' : '') + ' <small>' + c.n + '/' + c.total + '</small></button>'; }).join('') + '</div>';
+    var c0 = packCount(em), pct = c0.total ? Math.round(c0.n / c0.total * 100) : 0;
+    h += '<div class="pkbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '"><i style="width:' + pct + '%"></i></div>';
+    h += '<p class="hint">체크는 사람마다 따로 돼요. \'같이 쓰는 것\'은 둘 중 한 명만 챙기면 돼요. 이름을 누르면 고치거나 지울 수 있어요.</p>';
+    if (!S.packing.length) h += '<div class="empty">' + (loaded ? '아직 짐 목록이 없어요. 아래에서 추가해 보세요.' : '불러오는 중') + '</div>';
+    var mine = S.packing.filter(function (x) { return packMine(x, em); }), sh = S.packing.filter(function (x) { return x.who === 'shared'; });
+    PCAT.forEach(function (c) {
+      var l = mine.filter(function (x) { return (x.cat || 'bag') === c[0]; }).sort(byOrder); if (!l.length) return;
+      var n = l.filter(function (x) { return packDone(x, em); }).length;
+      h += '<div class="month">' + c[1] + ' ' + esc(c[2]) + ' <span class="small">' + n + '/' + l.length + '</span></div><div class="card">' + l.map(function (x) { return packRow(x, em); }).join('') + '</div>';
+    });
+    if (sh.length) {
+      var ns = sh.filter(function (x) { return x.done; }).length;
+      h += '<div class="month">🤝 같이 쓰는 것 <span class="small">' + ns + '/' + sh.length + ' · 한 명만</span></div><div class="card">' + sh.sort(byOrder).map(function (x) { return packRow(x, em); }).join('') + '</div>';
+    }
+    if (canEdit()) h += packEdit === 'new' ? packForm('new') : '<div class="acts" style="margin-top:10px"><button type="button" class="btn fill" id="pkadd">＋ 짐 추가</button></div>';
+    h += '<p class="hint" style="margin-top:12px">출발 이틀 전·전날 저녁 8시, 출발일 아침 7시에 아직 안 챙긴 게 있으면 각자 폰으로 알려 드려요.</p>';
+    $('v-pack').innerHTML = h;
+  }
+  function packToggle(id) {
+    var x = S.packing.filter(function (p) { return p.id === id; })[0]; if (!x) return;
+    var em = packFor(), o = {};
+    if (x.who === 'both') { o[chkKey(em)] = !x[chkKey(em)]; }
+    else { o.done = !x.done; o.doneBy = o.done ? myId() : null; o.doneAt = o.done ? nowIso() : null; }
+    Store.update('packing', id, o);
+  }
+
+  /* ---------- 회화 카드 (휴대폰 내장 목소리로 소리 내 읽기, 인터넷 없어도 됨) ----------
+     [분류, 한국어, 스페인어, 스페인어 발음, 포르투갈어(포르투갈식), 발음, 메모] */
+  var TCAT = [['basic', '👋', '기본'], ['eat', '🍽️', '식당·카페'], ['shop', '🛍️', '쇼핑'], ['move', '🚕', '교통'], ['stay', '🏨', '숙소'], ['love', '💍', '신혼여행'], ['sos', '🆘', '위급'], ['mine', '📌', '부탁한 문장']];
+  var PHRASES = [
+    ['basic', '안녕하세요 (아침·낮)', '¡Hola, buenos días!', '올라, 부에노스 디아스', 'Olá, bom dia!', '올라, 봉 디아', ''],
+    ['basic', '안녕하세요 (오후·저녁)', '¡Buenas tardes!', '부에나스 따르데스', 'Boa tarde!', '보아 따르드', '해가 지면 스페인어 Buenas noches, 포르투갈어 Boa noite'],
+    ['basic', '정말 고맙습니다', '¡Muchas gracias!', '무차스 그라시아스', 'Muito obrigado!', '무이뚜 오브리가두', '포르투갈어는 말하는 사람이 여자면 obrigada(오브리가다)'],
+    ['basic', '저기요 (부를 때)', 'Disculpe.', '디스꿀뻬', 'Desculpe.', '디슈꿀프', ''],
+    ['basic', '지나갈게요', 'Perdón, ¿puedo pasar?', '뻬르돈, 뿌에도 빠사르?', 'Com licença.', '꽁 리센사', ''],
+    ['basic', '영어 하세요?', '¿Habla inglés?', '아블라 잉글레스?', 'Fala inglês?', '팔라 잉글레시?', ''],
+    ['basic', '천천히 말씀해 주세요', 'Más despacio, por favor.', '마스 데스빠시오, 뽀르 파보르', 'Mais devagar, por favor.', '마이시 드바가르, 뿌르 파보르', ''],
+    ['basic', '죄송해요, 못 알아들었어요', 'Perdone, no le he entendido.', '뻬르도네, 노 레 에 엔뗀디도', 'Desculpe, não percebi.', '디슈꿀프, 나웅 뻬르스비', ''],
+    ['basic', '화장실이 어디예요?', '¿Dónde está el baño, por favor?', '돈데 에스따 엘 바뇨, 뽀르 파보르?', 'Onde é a casa de banho?', '옹드 에 아 까자 드 바뉴?', ''],
+    ['eat', '두 명 자리 있어요?', 'Una mesa para dos, por favor.', '우나 메사 빠라 도스, 뽀르 파보르', 'Uma mesa para dois, por favor.', '우마 메자 빠라 도이시, 뿌르 파보르', ''],
+    ['eat', '서(Suh) 이름으로 예약했어요', 'Tenemos una reserva a nombre de Suh.', '떼네모스 우나 레세르바 아 놈브레 데 서', 'Temos uma reserva em nome de Suh.', '떼무즈 우마 흐제르바 앵 노므 드 서', ''],
+    ['eat', '메뉴판 주세요', 'La carta, por favor.', '라 까르따, 뽀르 파보르', 'A ementa, por favor.', '아 이멩따, 뿌르 파보르', ''],
+    ['eat', '뭘 추천하세요?', '¿Qué nos recomienda?', '께 노스 레꼬미엔다?', 'O que é que recomenda?', '우 끼 에 끄 흐꾸멩다?', ''],
+    ['eat', '이거 주세요 (가리키며)', 'Esto, por favor.', '에스또, 뽀르 파보르', 'Isto, por favor.', '이슈뚜, 뿌르 파보르', ''],
+    ['eat', '나눠 먹을 거예요', 'Es para compartir.', '에스 빠라 꼼빠르띠르', 'É para partilhar.', '에 빠라 빠르띨랴르', '타파스·해산물은 나눠 먹는 게 보통이에요'],
+    ['eat', '탄산 없는 물 주세요', 'Agua sin gas, por favor.', '아구아 신 가스, 뽀르 파보르', 'Água sem gás, por favor.', '아구아 상 가시, 뿌르 파보르', ''],
+    ['eat', '라테 두 잔 주세요', 'Dos cafés con leche, por favor.', '도스 까페스 꼰 레체, 뽀르 파보르', 'Dois galões, por favor.', '도이시 갈로잉시, 뿌르 파보르', '포르투갈 갈랑(galão)은 우유 듬뿍 커피. 에스프레소는 리스본 bica, 포르투 cimbalino'],
+    ['eat', '정말 맛있었어요!', '¡Estaba buenísimo!', '에스따바 부에니시모!', 'Estava delicioso!', '이슈따바 들리시오주!', ''],
+    ['eat', '계산서 주세요', 'La cuenta, por favor.', '라 꾸엔따, 뽀르 파보르', 'A conta, por favor.', '아 꽁따, 뿌르 파보르', '직원이 먼저 안 가져와요. 눈 마주치고 손으로 쓰는 시늉을 해도 돼요'],
+    ['eat', '카드로 낼 수 있어요?', '¿Puedo pagar con tarjeta?', '뿌에도 빠가르 꼰 따르헤따?', 'Posso pagar com cartão?', '뽀수 빠가르 꽁 까르따웅?', ''],
+    ['eat', '포장해 주세요', '¿Me lo pone para llevar?', '메 로 뽀네 빠라 예바르?', 'É para levar, por favor.', '에 빠라 르바르, 뿌르 파보르', ''],
+    ['shop', '얼마예요?', '¿Cuánto cuesta?', '꾸안또 꾸에스따?', 'Quanto custa?', '꽌뚜 꾸슈따?', ''],
+    ['shop', '그냥 구경하는 중이에요', 'Solo estoy mirando, gracias.', '솔로 에스또이 미란도, 그라시아스', 'Estou só a ver, obrigado.', '이슈또 쏘 아 베르, 오브리가두', ''],
+    ['shop', '입어 봐도 돼요?', '¿Me lo puedo probar?', '메 로 뿌에도 쁘로바르?', 'Posso experimentar?', '뽀수 이슈뻬리멩따르?', ''],
+    ['shop', '다른 사이즈 있어요?', '¿Lo tiene en otra talla?', '로 띠에네 엔 오뜨라 따야?', 'Tem noutro tamanho?', '땡 노우뜨루 따마뉴?', ''],
+    ['shop', '택스프리 해 주세요', '¿Me hace el tax free, por favor?', '메 아세 엘 택스프리, 뽀르 파보르?', 'Pode fazer o tax free, por favor?', '뽀드 파제르 우 택스프리, 뿌르 파보르?', '여권이 있어야 해요. 서류는 출국하는 공항(마드리드)에서 처리'],
+    ['shop', '선물 포장해 주세요', '¿Me lo envuelve para regalo?', '메 로 엔부엘베 빠라 레갈로?', 'Pode embrulhar para oferta?', '뽀드 잉브룰랴르 빠라 오페르따?', ''],
+    ['move', '공항으로 가 주세요', 'Al aeropuerto, por favor.', '알 아에로뿌에르또, 뽀르 파보르', 'Para o aeroporto, por favor.', '빠라 우 아에루뽀르뚜, 뿌르 파보르', '숙소 주소는 🚕 기사님 카드에 있어요'],
+    ['move', '기차역으로 가 주세요', 'A la estación de tren, por favor.', '아 라 에스따시온 데 뜨렌, 뽀르 파보르', 'Para a estação de comboios, por favor.', '빠라 아 이슈따사웅 드 꽁보이우시, 뿌르 파보르', ''],
+    ['move', '얼마나 걸려요?', '¿Cuánto se tarda?', '꾸안또 세 따르다?', 'Quanto tempo demora?', '꽌뚜 뗑뿌 드모라?', ''],
+    ['move', '여기서 세워 주세요', 'Pare aquí, por favor.', '빠레 아끼, 뽀르 파보르', 'Pode parar aqui, por favor.', '뽀드 빠라르 아끼, 뿌르 파보르', ''],
+    ['move', '영수증 주세요', '¿Me da un recibo, por favor?', '메 다 운 레시보, 뽀르 파보르?', 'Pode dar-me um recibo?', '뽀드 다르므 웅 흐시부?', ''],
+    ['move', '이 기차 몇 번 승강장이에요?', '¿De qué vía sale el tren?', '데 께 비아 살레 엘 뜨렌?', 'De que linha parte o comboio?', '드 끄 린냐 빠르뜨 우 꽁보이우?', ''],
+    ['move', '표 두 장 주세요', 'Dos billetes, por favor.', '도스 비예떼스, 뽀르 파보르', 'Dois bilhetes, por favor.', '도이시 빌례뜨시, 뿌르 파보르', ''],
+    ['stay', '체크인할게요, 서(Suh) 이름으로 예약했어요', 'Venimos a hacer el check-in. La reserva está a nombre de Suh.', '베니모스 아 아세르 엘 체킨. 라 레세르바 에스따 아 놈브레 데 서', 'Viemos fazer o check-in. A reserva está em nome de Suh.', '비에무시 파제르 우 체킨. 아 흐제르바 이슈따 앵 노므 드 서', ''],
+    ['stay', '짐 맡길 수 있어요?', '¿Podemos dejar las maletas aquí?', '뽀데모스 데하르 라스 말레따스 아끼?', 'Podemos deixar as malas aqui?', '뿌데무시 데이샤르 아시 말라시 아끼?', ''],
+    ['stay', '와이파이 비밀번호가 뭐예요?', '¿Cuál es la contraseña del wifi?', '꾸알 에스 라 꼰뜨라세냐 델 위피?', 'Qual é a palavra-passe do wi-fi?', '꽐 에 아 빨라브라 빠스 두 와이파이?', ''],
+    ['stay', '택시 좀 불러 주세요', '¿Nos puede pedir un taxi?', '노스 뿌에데 뻬디르 운 딱시?', 'Pode chamar-nos um táxi?', '뽀드 샤마르누즈 웅 딱시?', ''],
+    ['stay', '체크아웃은 몇 시예요?', '¿A qué hora es el check-out?', '아 께 오라 에스 엘 체카웃?', 'A que horas é o check-out?', '아 끄 오라즈 에 우 체카웃?', ''],
+    ['love', '우리 신혼여행 중이에요!', '¡Estamos de luna de miel!', '에스따모스 데 루나 데 미엘!', 'Estamos em lua de mel!', '이슈따무즈 앵 루아 드 멜!', '호텔·식당에서 말하면 축하해 주는 곳이 많아요'],
+    ['love', '사진 좀 찍어 주실래요?', '¿Nos podría hacer una foto, por favor?', '노스 뽀드리아 아세르 우나 포또, 뽀르 파보르?', 'Pode tirar-nos uma fotografia, por favor?', '뽀드 띠라르누즈 우마 푸뚜그라피아, 뿌르 파보르?', ''],
+    ['love', '건배!', '¡Salud!', '살룻!', 'Saúde!', '사우드!', ''],
+    ['love', '정말 아름다워요', '¡Qué bonito!', '께 보니또!', 'Que bonito!', '끄 부니뚜!', ''],
+    ['sos', '도와주세요!', '¡Ayuda, por favor!', '아유다, 뽀르 파보르!', 'Ajuda, por favor!', '아주다, 뿌르 파보르!', '긴급 전화는 어디서나 112'],
+    ['sos', '경찰 불러 주세요', 'Llame a la policía, por favor.', '야메 아 라 뽈리시아, 뽀르 파보르', 'Chame a polícia, por favor.', '샤므 아 뿔리시아, 뿌르 파보르', ''],
+    ['sos', '여권을 잃어버렸어요', 'He perdido el pasaporte.', '에 뻬르디도 엘 빠사뽀르떼', 'Perdi o passaporte.', '뻬르디 우 빠사뽀르뜨', '🆘 비상 연락처에 할 일 순서가 있어요'],
+    ['sos', '지갑을 도둑맞았어요', 'Me han robado la cartera.', '메 안 로바도 라 까르떼라', 'Roubaram-me a carteira.', '호바라웅므 아 까르떼이라', ''],
+    ['sos', '의사가 필요해요', 'Necesito un médico.', '네세시또 운 메디꼬', 'Preciso de um médico.', '쁘르시주 드 웅 메디꾸', ''],
+    ['sos', '약국이 어디 있어요?', '¿Dónde hay una farmacia?', '돈데 아이 우나 파르마시아?', 'Onde há uma farmácia?', '옹드 아 우마 파르마시아?', '초록 십자가 간판']
+  ].map(function (a, i) { return { id: 'b' + i, cat: a[0], ko: a[1], es: a[2], esK: a[3], pt: a[4], ptK: a[5], note: a[6] }; });
+  function phraseList() {
+    return PHRASES.concat(S.phrases.filter(function (x) { return x.ko && (x.es || x.pt); }).map(function (x) { return Object.assign({ cat: 'mine' }, x); }));
+  }
+  function autoLang() {
+    var c = stayCity(ymd(today())) || (inTrip() ? null : null);
+    if (c) return (c.lang || (['리스본', '포르투'].indexOf(c.name) >= 0 ? 'pt' : 'es'));
+    return 'es';
+  }
+  function curLang() { return talkLang || autoLang(); }
+  function ttsOk() { return 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function'; }
+  function pickVoice(lang) {
+    if (!ttsOk()) return null;
+    var vs = window.speechSynthesis.getVoices() || [], tag = lang === 'pt' ? 'pt-PT' : 'es-ES';
+    var norm = function (v) { return String(v.lang || '').replace('_', '-'); };
+    return vs.filter(function (v) { return norm(v) === tag; })[0] || vs.filter(function (v) { return norm(v).indexOf(lang) === 0; })[0] || null;
+  }
+  function speak(text, lang, btn) {
+    if (!ttsOk()) { toast('이 폰에서는 소리 내 읽기를 쓸 수 없어요.'); return; }
+    var ss = window.speechSynthesis; ss.cancel();
+    var u = new window.SpeechSynthesisUtterance(text), v = pickVoice(lang);
+    u.lang = lang === 'pt' ? 'pt-PT' : 'es-ES'; if (v) u.voice = v; u.rate = talkSlow ? 0.65 : 0.92;
+    if (btn) { btn.classList.add('on'); u.onend = u.onerror = function () { btn.classList.remove('on'); }; }
+    ss.speak(u);
+  }
+  function voiceNote(lang) {
+    if (!ttsOk()) return '이 폰은 소리 내 읽기를 지원하지 않아요. 발음 표기를 보고 읽거나 화면을 보여 주세요.';
+    var vs = window.speechSynthesis.getVoices() || []; if (!vs.length) return '';
+    var v = pickVoice(lang); if (!v) return (lang === 'pt' ? '포르투갈어' : '스페인어') + ' 목소리가 이 폰에 없어요. 설정 → 손쉬운 사용 → 읽기 및 말하기 → 음성에서 받을 수 있어요.';
+    if (lang === 'pt' && String(v.lang).replace('_', '-') !== 'pt-PT') return '포르투갈식 목소리가 없어 브라질식으로 읽어요. 설정 → 손쉬운 사용 → 읽기 및 말하기 → 음성 → 포르투갈어(포르투갈)를 받으면 더 정확해요.';
+    return '';
+  }
+  function talkView() {
+    var lg = curLang(), list = phraseList(), cats = TCAT.filter(function (c) { return list.some(function (p) { return p.cat === c[0]; }); });
+    var h = '<button type="button" class="back" data-go="home">‹ 홈</button><h2 style="margin-top:6px"><span class="em">💬</span>회화 카드</h2>';
+    h += '<div class="seg" role="tablist">' + [['es', '🇪🇸 스페인어'], ['pt', '🇵🇹 포르투갈어']].map(function (x) { return '<button role="tab" data-tlang="' + x[0] + '" aria-selected="' + (lg === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>';
+    h += '<div class="trow"><label class="chkrow"><input type="checkbox" id="tslow"' + (talkSlow ? ' checked' : '') + '> 🐢 천천히 읽기</label><span class="small">' + (talkLang ? '' : '오늘 있는 곳 기준') + '</span></div>';
+    var vn = voiceNote(lg); h += '<p class="hint" id="tvn">' + esc(vn || '🔊를 누르면 폰이 읽어 줘요. 인터넷이 없어도 돼요. 소리가 안 나면 무음 모드를 꺼 보세요.') + '</p>';
+    h += '<div class="fchips" role="group" aria-label="상황">' + [['', '전체']].concat(cats.map(function (c) { return [c[0], c[1] + ' ' + c[2]]; })).map(function (c) { return '<button type="button" class="fchip" data-tcat="' + c[0] + '" aria-pressed="' + (talkCat === c[0]) + '">' + esc(c[1]) + '</button>'; }).join('') + '</div>';
+    cats.filter(function (c) { return !talkCat || c[0] === talkCat; }).forEach(function (c) {
+      var l = list.filter(function (p) { return p.cat === c[0] && p[lg]; }); if (!l.length) return;
+      h += '<div class="month">' + c[1] + ' ' + esc(c[2]) + '</div>' + l.map(function (p) {
+        return '<div class="phr"><div class="ph-ko">' + esc(p.ko) + '</div><div class="ph-row"><div><div class="ph-t" lang="' + (lg === 'pt' ? 'pt-PT' : 'es-ES') + '">' + esc(p[lg]) + '</div>' + (p[lg + 'K'] ? '<div class="ph-k">' + esc(p[lg + 'K']) + '</div>' : '') + '</div>' +
+          '<div class="ph-b"><button type="button" class="ico" data-say="' + esc(p.id) + '" aria-label="소리 내 읽기">🔊</button><button type="button" class="ico" data-show="' + esc(p.id) + '" aria-label="크게 보여 주기">⤢</button></div></div>' +
+          (p.note ? '<div class="ph-n">' + esc(p.note) + '</div>' : '') + '</div>';
+      }).join('');
+    });
+    h += '<form class="card linkf" id="talkf"' + (canEdit() ? '' : ' hidden') + '><b class="disp">＋ 이런 말도 넣어 줘</b><div class="small">한국어로 적어 주시면 1시간 안에 스페인어·포르투갈어로 바꿔 \'부탁한 문장\'에 넣어 드려요.</div>' +
+      '<input class="inp" id="talkt" maxlength="120" placeholder="예: 견과류 알레르기가 있어요" aria-label="넣고 싶은 말" required><div class="acts"><button class="btn fill" type="submit">부탁하기</button></div></form>';
+    h += '<p class="hint" style="margin-top:12px">바르셀로나는 카탈루냐어도 쓰지만 스페인어로 충분해요. 인사만 바꿔 보려면: 안녕하세요 Bon dia(본 디아), 고마워요 Gràcies(그라시에스).</p>';
+    $('v-talk').innerHTML = h;
+  }
+  function phraseById(id) { return phraseList().filter(function (p) { return p.id === id; })[0]; }
+  if (ttsOk() && window.speechSynthesis.addEventListener) window.speechSynthesis.addEventListener('voiceschanged', function () { var n = $('tvn'); if (n && view === 'talk') { var v = voiceNote(curLang()); n.textContent = v || '🔊를 누르면 폰이 읽어 줘요. 인터넷이 없어도 돼요. 소리가 안 나면 무음 모드를 꺼 보세요.'; } });
+
+  /* ---------- 아이폰 캘린더 구독 ---------- */
+  var K_CAL = 'hm.calkey';
+  function calUrl(k) { var u = ((window.HM_CONFIG || {}).url || '').replace(/\/$/, ''); return u && k ? u + '/functions/v1/cal?k=' + k : ''; }
+  function calLoad(rotate) {
+    if (Store.status.mode !== 'ready') return;
+    if (!calInfo.key) { try { calInfo.key = localStorage.getItem(K_CAL) || null; } catch (e) {} }
+    if (!navigator.onLine || calInfo.busy) { calRender(); return; }
+    calInfo.busy = true;
+    Store.rpc('cal_key', { p_rotate: !!rotate }).then(function (k) {
+      calInfo.key = k; calInfo.err = ''; try { localStorage.setItem(K_CAL, k); } catch (e) {}
+      if (rotate) toast('주소를 바꿨어요. 아이폰 캘린더에서 옛 구독을 지우고 새로 구독해 주세요.');
+    }, function (e) { calInfo.err = (e && e.message) || '받지 못함'; }).then(function () { calInfo.busy = false; calRender(); });
+  }
+  function calBoxHtml() {
+    if (Store.status.mode === 'demo') return '<p class="small">데모 모드에서는 쓸 수 없어요.</p>';
+    var u = calUrl(calInfo.key);
+    if (!u) return '<p class="small">' + (calInfo.busy ? '주소를 받는 중…' : (navigator.onLine ? (calInfo.err ? '주소를 받지 못했어요: ' + esc(calInfo.err) : '주소를 받는 중…') : '인터넷이 연결되면 구독 주소를 받아 와요.')) + '</p>';
+    return '<p class="small">일정이 아이폰 캘린더에 \'우리 신혼여행\'으로 들어가요. 앱에서 일정이나 예약을 고치면 캘린더도 몇 시간 안에 따라 바뀌어요. 두 사람 각자 한 번씩 구독하면 돼요.</p>' +
+      '<div class="acts"><a class="btn fill" id="calSub" href="' + esc(u.replace(/^https:/, 'webcal:')) + '">🗓️ 캘린더에 구독하기</a><button type="button" class="btn" id="calCopy">주소 복사</button></div>' +
+      '<details class="calhelp"><summary>버튼이 안 되면</summary><ol class="small cal-steps"><li>위 \'주소 복사\'를 눌러요.</li><li>아이폰 설정 → 캘린더 → 캘린더 계정 → 계정 추가 → 기타</li><li>\'구독 캘린더 추가\' → 서버에 붙여 넣기 → 다음 → 저장</li></ol></details>' +
+      '<p class="small" style="margin-top:6px">시간은 현지 시계 그대로 보여요(리스본 20:30 → 20:30). 이 주소를 아는 사람은 일정을 볼 수 있으니 다른 사람에게 보내지 마세요.' + (canEdit() ? ' <button type="button" class="linkbtn" id="calRot">주소 바꾸기</button>' : '') + '</p>';
+  }
+  function calRender() { var b = $('calBox'); if (b) b.innerHTML = calBoxHtml(); }
+  function copyText(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t);
+    return new Promise(function (res, rej) { var a = document.createElement('textarea'); a.value = t; a.setAttribute('readonly', ''); a.style.position = 'fixed'; a.style.opacity = '0'; document.body.appendChild(a); a.select(); try { document.execCommand('copy') ? res() : rej(); } catch (e) { rej(e); } a.remove(); });
+  }
+
+  /* ---------- 하루 한 줄 + 사진 (귀국 후 앨범) ----------
+     journal/<날짜>_<아이디> = { date, by, text, photos:[{p, t}] }. 사진은 비공개 보관함 'wallet'의 j/ 아래.
+     인터넷이 없을 때 고른 사진은 이 폰에 먼저 저장해 두고, 연결되면 올린다. */
+  var JCACHE = 'journal-files', K_JPEND = 'hm.jpend.v1', jUrl = {}, jBusy = false, MAXPH = 4;
+  function jKey(path) { return new Request(new URL('__j/' + path, location.href.split('#')[0]).href); }
+  function jGet(path) { if (!('caches' in window)) return Promise.resolve(null); return caches.open(JCACHE).then(function (c) { return c.match(jKey(path)); }).then(function (r) { return r ? r.blob() : null; }).catch(function () { return null; }); }
+  function jPut(path, blob) { if (!('caches' in window)) return Promise.resolve(); return caches.open(JCACHE).then(function (c) { return c.put(jKey(path), new Response(blob, { headers: { 'Content-Type': 'image/jpeg' } })); }).catch(function () {}); }
+  function jPend() { try { return JSON.parse(localStorage.getItem(K_JPEND) || '[]'); } catch (e) { return []; } }
+  function jPendSet(l) { try { localStorage.setItem(K_JPEND, JSON.stringify(l)); } catch (e) {} }
+  function jFlush() {
+    if (jBusy || !navigator.onLine || Store.status.mode !== 'ready') return;
+    var l = jPend(); if (!l.length) return; jBusy = true;
+    l.reduce(function (pr, p) {
+      return pr.then(function () { return jGet(p).then(function (b) { if (!b) { jPendSet(jPend().filter(function (x) { return x !== p; })); return; } return Store.fileUp(p, b, 'image/jpeg').then(function () { jPendSet(jPend().filter(function (x) { return x !== p; })); }); }); });
+    }, Promise.resolve()).then(function () { jBusy = false; }, function () { jBusy = false; });
+  }
+  function jImg(path) {
+    if (jUrl[path]) return Promise.resolve(jUrl[path]);
+    return jGet(path).then(function (b) {
+      if (b) return b;
+      if (navigator.onLine && Store.canFiles() && Store.status.mode !== 'demo') return Store.fileGet(path).then(function (bb) { jPut(path, bb); return bb; }, function () { return null; });
+      return null;
+    }).then(function (b) { if (!b) return null; jUrl[path] = URL.createObjectURL(b); return jUrl[path]; });
+  }
+  function jHydrate(root) {
+    Array.prototype.forEach.call((root || document).querySelectorAll('img[data-jpath]:not([src])'), function (img) {
+      var p = img.dataset.jpath, alt = img.dataset.jalt;
+      jImg(p).then(function (u) { if (u) return u; return alt ? jImg(alt) : null; }).then(function (u) { if (u) img.src = u; else img.classList.add('miss'); });
+    });
+  }
+  function jId(date, em) { return date + '_' + lid(em); }
+  function jFor(date) { return S.journal.filter(function (j) { return j.date === date; }); }
+  function jMine(date) { return S.journal.filter(function (j) { return j.id === jId(date, myId()); })[0] || null; }
+  function jHas(j) { return !!(j && ((j.text || '').trim() || (j.photos && j.photos.length))); }
+  function tripDayN(date) { var m = S.meta || {}; return m.depart ? Math.round((pd(date) - pd(m.depart)) / 86400000) + 1 : null; }
+  function jCanWrite(date) { var m = S.meta || {}, t = ymd(today()); return !!(m.depart && m.ret && date >= m.depart && date <= m.ret && date <= t); }
+  function jEntryHtml(j, date) {
+    var ph = (j && j.photos) || [];
+    return '<div class="jent"><div class="jwho">' + esc(whoShort(j.by)) + '</div>' + (j.text ? '<div class="jtxt">' + esc(j.text) + '</div>' : '') +
+      (ph.length ? '<div class="jph">' + ph.map(function (p, i) { return '<button type="button" class="jth" data-jview="' + esc(date) + '|' + esc(j.id) + '|' + i + '" aria-label="사진 크게 보기"><img data-jpath="' + esc(p.t || p.p) + '" data-jalt="' + esc(p.p) + '" alt=""></button>'; }).join('') + '</div>' : '') + '</div>';
+  }
+  function jDayBlock(date) {
+    if (!jCanWrite(date)) return '';
+    var l = jFor(date).filter(jHas), mine = jMine(date);
+    return '<div class="jday"><div class="jhd">📔 우리 기록</div>' + l.map(function (j) { return jEntryHtml(j, date); }).join('') +
+      (canEdit() ? '<div class="acts"><button type="button" class="btn small-btn" data-jot="' + esc(date) + '">' + (jHas(mine) ? '✏️ 내 기록 고치기' : '＋ 이 날 한 줄 남기기') + '</button></div>' : '') + '</div>';
+  }
+  function jEditHtml() {
+    var date = ov.date, j = jMine(date) || {}, n = tripDayN(date), d = S.days.filter(function (x) { return x.date === date; })[0];
+    var other = jFor(date).filter(function (x) { return x.id !== jId(date, myId()) && jHas(x); });
+    var cur = ov.ph || [];
+    return '<div class="ov sos jed" role="dialog" aria-modal="true" aria-label="하루 기록">' +
+      '<div class="ovbar"><div><b>📔 ' + esc(md(date)) + ' 기록</b><div class="small">' + (n ? n + '일째 · ' : '') + esc(d ? d.city : '') + '</div></div><button type="button" class="ovx" data-ovclose aria-label="닫기">✕</button></div>' +
+      '<form class="sosb" id="jf">' + other.map(function (x) { return jEntryHtml(x, date); }).join('') +
+      '<label for="jt">오늘 한 줄</label><textarea class="inp" id="jt" rows="3" maxlength="200" placeholder="오늘 가장 좋았던 순간, 웃겼던 일, 맛있던 것">' + esc(ov.text != null ? ov.text : (j.text || '')) + '</textarea>' +
+      '<label>사진 (최대 ' + MAXPH + '장)</label><div class="jph jedit">' + cur.map(function (p, i) {
+        return '<span class="jth"><img ' + (p.url ? 'src="' + esc(p.url) + '"' : 'data-jpath="' + esc(p.t || p.p) + '" data-jalt="' + esc(p.p) + '"') + ' alt=""><button type="button" class="jx" data-jrm="' + i + '" aria-label="이 사진 빼기">✕</button></span>';
+      }).join('') + (cur.length < MAXPH ? '<label class="jth jadd" for="jph">＋<input type="file" id="jph" accept="image/*" multiple hidden></label>' : '') + '</div>' +
+      '<p class="small" id="jprog" aria-live="polite">' + (navigator.onLine ? '' : '인터넷이 없어도 저장돼요. 사진은 연결되면 올라가요.') + '</p>' +
+      '<div class="acts"><button class="btn fill" type="submit">저장</button><button class="btn" type="button" data-ovclose>닫기</button></div></form></div>';
+  }
+  function openJot(date) {
+    if (!canEdit()) { toast('로그인하면 기록을 남길 수 있어요.'); return; }
+    var j = jMine(date);
+    ov = { t: 'jedit', date: date, ph: ((j && j.photos) || []).map(function (p) { return { p: p.p, t: p.t }; }), text: null, removed: [] };
+    renderOv();
+  }
+  function scaleJpeg(src, max, q) {
+    var s = Math.min(1, max / Math.max(src.width, src.height)), cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(src.width * s)); cv.height = Math.max(1, Math.round(src.height * s));
+    cv.getContext('2d').drawImage(src, 0, 0, cv.width, cv.height);
+    return toBlob(cv, 'image/jpeg', q).then(function (b) { cv.width = cv.height = 0; return b; });
+  }
+  function decodeImg(file) {
+    if (window.createImageBitmap) return createImageBitmap(file).catch(function () { return viaImg(file); });
+    return viaImg(file);
+  }
+  function viaImg(file) { return new Promise(function (res, rej) { var u = URL.createObjectURL(file), im = new Image(); im.onload = function () { res(im); }; im.onerror = function () { rej(new Error('사진을 읽지 못했어요.')); }; im.src = u; }); }
+  function jAddFiles(files) {
+    var room = MAXPH - ov.ph.length, list = Array.prototype.slice.call(files || []).slice(0, Math.max(0, room));
+    if (!list.length) { toast('사진은 하루 ' + MAXPH + '장까지예요.'); return; }
+    var pr = $('jprog'); if (pr) pr.textContent = '사진 준비 중…';
+    var t = $('jt'); if (t) ov.text = t.value;
+    list.reduce(function (p, f) {
+      return p.then(function () { return decodeImg(f).then(function (bm) { return Promise.all([scaleJpeg(bm, 1600, 0.82), scaleJpeg(bm, 480, 0.72)]); }).then(function (r) { ov.ph.push({ blob: r[0], tblob: r[1], url: URL.createObjectURL(r[1]) }); }); });
+    }, Promise.resolve()).then(function () { renderOv(); }, function (e) { toast((e && e.message) || '사진을 읽지 못했어요.'); renderOv(); });
+  }
+  function jSave() {
+    var date = ov.date, id = jId(date, myId()), text = ($('jt').value || '').trim(), ph = ov.ph, removed = ov.removed || [];
+    var btn = document.querySelector('#jf [type=submit]'); if (btn) btn.disabled = true;
+    var out = [], pend = jPend();
+    var chain = ph.reduce(function (pr, x) {
+      return pr.then(function () {
+        if (!x.blob) { out.push({ p: x.p, t: x.t }); return; }
+        var base = 'j/' + date + '/' + lid(myId()) + '-' + Store.newId(), p = base + '.jpg', tp = base + '_t.jpg';
+        out.push({ p: p, t: tp });
+        return Promise.all([jPut(p, x.blob), jPut(tp, x.tblob)]).then(function () {
+          if (navigator.onLine && Store.status.mode === 'ready') return Store.fileUp(tp, x.tblob, 'image/jpeg').then(function () { return Store.fileUp(p, x.blob, 'image/jpeg'); }).catch(function () { pend.push(tp, p); });
+          if (Store.status.mode !== 'demo') pend.push(tp, p);
+        });
+      });
+    }, Promise.resolve());
+    chain.then(function () {
+      jPendSet(pend);
+      var prev = jMine(date), data = { date: date, by: myId(), text: text, photos: out, at: (prev && prev.at) || nowIso() };
+      if (prev) data.editedAt = nowIso();
+      Store.set('journal', id, data);
+      if (removed.length && navigator.onLine && Store.status.mode === 'ready') Store.fileDel(removed).catch(function () {});
+      ph.forEach(function (x) { if (x.url) URL.revokeObjectURL(x.url); });
+      ov = null; renderOv(); toast(savedMsg('기록했어요.')); render(); jFlush();
+    }, function (e) { if (btn) btn.disabled = false; toast('저장하지 못했어요: ' + ((e && e.message) || '오류')); });
+  }
+  function albumView() {
+    var m = S.meta || {}, t = ymd(today()), h = '<button type="button" class="back" data-go="home">‹ 홈</button><h2 style="margin-top:6px"><span class="em">📔</span>우리 기록</h2>';
+    var ds = S.days.slice().sort(byOrder).filter(function (d) { return d.date <= t && (!m.ret || d.date <= m.ret); });
+    var all = S.journal.filter(jHas), nPh = all.reduce(function (s, j) { return s + ((j.photos || []).length); }, 0), nDays = ds.filter(function (d) { return jFor(d.date).some(jHas); }).length;
+    if (!m.depart || t < m.depart) {
+      h += '<div class="empty">여행이 시작되면 하루에 한 줄과 사진 몇 장을 각자 남겨요. 여행 중엔 밤 10시에 아직 안 남겼으면 알려 드리고, 다녀와서는 여기가 둘만의 앨범이 돼요.</div>';
+      $('v-album').innerHTML = h; return;
+    }
+    h += '<p class="hint">' + ds.length + '일 중 ' + nDays + '일 기록 · 사진 ' + nPh + '장' + (window.print ? ' · <button type="button" class="linkbtn" id="aprint">인쇄·PDF로 저장</button>' : '') + '</p>';
+    h += '<div class="album">' + ds.map(function (d) {
+      var l = jFor(d.date).filter(jHas), n = tripDayN(d.date), dd = pd(d.date);
+      return '<article class="aday"><div class="ahd"><span class="dbadge"><span class="m">' + (dd.getMonth() + 1) + '월</span><span class="dd">' + dd.getDate() + '</span><span class="w">' + DOW[dd.getDay()] + '</span></span><div><b class="disp">' + esc(d.city) + '</b><div class="small">' + (n ? n + '일째 · ' : '') + esc(d.headline || '') + '</div></div>' +
+        (l.some(function (j) { return (j.photos || []).length; }) && navigator.share ? '<button type="button" class="ico" data-jshare="' + esc(d.date) + '" aria-label="이 날 사진 저장·공유">⤴︎</button>' : '') + '</div>' +
+        (l.length ? l.map(function (j) { return jEntryHtml(j, d.date); }).join('') : '<p class="small">아직 기록이 없어요.</p>') +
+        (canEdit() ? '<div class="acts noprint"><button type="button" class="btn small-btn" data-jot="' + esc(d.date) + '">' + (jHas(jMine(d.date)) ? '✏️ 내 기록 고치기' : '＋ 한 줄 남기기') + '</button></div>' : '') + '</article>';
+    }).reverse().join('') + '</div>';
+    $('v-album').innerHTML = h;
+  }
+  function jPhotos(date) {
+    var out = [];
+    jFor(date).filter(jHas).forEach(function (j) { (j.photos || []).forEach(function (p) { out.push({ p: p.p, t: p.t, by: j.by, date: date, jid: j.id }); }); });
+    return out;
+  }
+  function photoHtml() {
+    var l = jPhotos(ov.date), i = Math.max(0, Math.min(ov.i || 0, l.length - 1)), x = l[i]; if (!x) return '';
+    return '<div class="ov viewer pv" role="dialog" aria-modal="true" aria-label="사진">' +
+      '<div class="ovbar"><div><b>' + esc(md(x.date)) + ' · ' + esc(whoShort(x.by)) + '</b><div class="small">' + (i + 1) + ' / ' + l.length + '</div></div><button type="button" class="ovx" data-ovclose aria-label="닫기">✕</button></div>' +
+      '<div class="ovbody pvb"><img data-jpath="' + esc(x.p) + '" data-jalt="' + esc(x.t) + '" alt="사진"></div>' +
+      '<div class="ovfoot">' + (l.length > 1 ? '<button type="button" class="btn small-btn" data-pnav="-1"' + (i === 0 ? ' disabled' : '') + '>‹ 이전</button>' : '') +
+      (navigator.share ? '<button type="button" class="btn small-btn" data-pshare>저장·공유</button>' : '<span class="small">사진을 길게 누르면 저장돼요</span>') +
+      (l.length > 1 ? '<button type="button" class="btn small-btn" data-pnav="1"' + (i === l.length - 1 ? ' disabled' : '') + '>다음 ›</button>' : '') + '</div></div>';
+  }
+  function shareFiles(items, title) {
+    return Promise.all(items.map(function (x, k) { return jImg(x.p).then(function (u) { return u ? fetch(u).then(function (r) { return r.blob(); }) : null; }).then(function (b) { return b ? new File([b], (x.date || 'photo') + '-' + (k + 1) + '.jpg', { type: 'image/jpeg' }) : null; }); }))
+      .then(function (fs) {
+        fs = fs.filter(Boolean); if (!fs.length) { toast('사진을 아직 받지 못했어요.'); return; }
+        if (navigator.canShare && !navigator.canShare({ files: fs })) { toast('이 폰에서는 사진 공유를 할 수 없어요. 길게 눌러 저장해 주세요.'); return; }
+        return navigator.share({ files: fs, title: title || '우리 신혼여행' });
+      }).catch(function (e) { if (e && e.name !== 'AbortError') toast('공유하지 못했어요.'); });
+  }
+  function route(h) {
+    if (h === 'jot') {
+      var t = ymd(today());
+      if (jCanWrite(t)) { go('home'); openJot(t); } else go('album');
+      return true;
+    }
+    if (VIEWS.indexOf(h) >= 0) { if (h !== view) go(h); return true; }
+    return false;
   }
 
   /* ---------- 설정 ---------- */
-  var DEFPREFS = { brief: true, tasks: true, claude: true, trip: true };
+  var DEFPREFS = { brief: true, tasks: true, claude: true, trip: true, journal: true };
   function isIOS() { return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
   function u8(b64) { var s = b64.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; var r = atob(s), a = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) a[i] = r.charCodeAt(i); return a; }
   function pushRefresh() {
@@ -846,7 +1226,7 @@
     if (s === 'off') return '<p class="small">브리핑, 할 일 마감, Claude 반영 소식, 여행 중 출발 알림을 이 폰으로 받아요. 두 사람 각자 켜야 해요.</p><div class="acts"><button type="button" class="btn fill" id="pushOn">🔔 이 폰에서 알림 켜기</button></div>';
     var p = pushInfo.prefs || DEFPREFS;
     return '<p class="small" style="color:var(--oliva)">✓ 이 폰에서 알림을 받고 있어요.</p>' +
-      [['brief', '아침 브리핑 (매일 7시 50분쯤)'], ['tasks', '할 일 마감 하루 전·당일 아침 9시'], ['claude', 'Claude가 요청을 반영했을 때, 새 변경 제안'], ['trip', '여행 중: 전날 밤 9시 내일 일정, 비행·기차 3시간 전']].map(function (k) {
+      [['brief', '아침 브리핑 (매일 7시 50분쯤)'], ['tasks', '할 일 마감 하루 전·당일 아침 9시, 출발 전 짐 체크'], ['claude', 'Claude가 요청을 반영했을 때, 새 변경 제안'], ['trip', '여행 중: 전날 밤 9시 내일 일정, 비행·기차 3시간 전'], ['journal', '여행 중 밤 10시: 그날 기록을 아직 안 남겼을 때']].map(function (k) {
         return '<label class="chkrow"><input type="checkbox" data-pp="' + k[0] + '"' + (p[k[0]] !== false ? ' checked' : '') + '> ' + k[1] + '</label>';
       }).join('') + '<div class="acts"><button type="button" class="btn small-btn" id="pushTest">테스트 알림 보내기</button><button type="button" class="btn small-btn del" id="pushOff">이 폰 알림 끄기</button></div>';
   }
@@ -874,6 +1254,7 @@
   function settings() {
     var me = Store.me(), m = S.meta || {}, h = '<button type="button" class="back" data-go="home">‹ 홈</button><h2><span class="em">⚙️</span>설정</h2>';
     h += '<div class="card"><b class="disp">🔔 알림</b><div id="pushBox">' + pushBoxHtml() + '</div></div>';
+    h += '<div class="card" id="calCard"><b class="disp">🗓️ 아이폰 캘린더</b><div id="calBox">' + calBoxHtml() + '</div></div>';
     h += '<div class="card"><b class="disp">📴 인터넷 없이 보기</b><div class="small">일정·할 일·지도 목록은 마지막으로 받은 내용이 이 폰에 저장돼요. 지갑 파일은 아래 상태를 확인하세요.</div><div id="setWst">' + walletStatusHtml() + '</div>' +
       '<div class="acts"><button type="button" class="btn small-btn" id="wresync">지갑 파일 다시 받기</button></div></div>';
     var opts = '', d = pd(m.depart), r = pd(m.ret);
@@ -882,7 +1263,7 @@
       '<select class="inp" id="pvd" style="margin-top:8px" aria-label="미리 볼 날짜"><option value="">끄기 (진짜 오늘)</option>' + opts + '</select></div>';
     h += '<div class="card"><b class="disp">👤 계정</b><div class="small" style="margin-top:4px">' + (Store.status.mode === 'demo' ? '데모 모드: 바꾼 내용은 이 기기에만 저장돼요.' : (me && me.email ? esc(me.name || me.email) + ' (' + esc(me.email) + ') · <button class="linkbtn" id="logout" type="button">로그아웃</button>' : '')) + '</div></div>';
     $('v-settings').innerHTML = h;
-    pushRefresh();
+    pushRefresh(); calLoad();
   }
 
   /* ---------- 로그인 ---------- */
@@ -920,13 +1301,14 @@
     if (gate) { if (lastMode !== mode || !$('v-login').innerHTML) loginView(); lastMode = mode; return; }
     lastMode = mode;
     pull(); header();
-    if (view === 'home') home(); else if (view === 'days') days(); else if (view === 'map') mapView(); else if (view === 'wallet') wallet(); else if (view === 'discover') discover(); else if (view === 'tasks') tasks(); else settings();
+    if (view === 'home') home(); else if (view === 'days') days(); else if (view === 'map') mapView(); else if (view === 'wallet') wallet(); else if (view === 'discover') discover(); else if (view === 'tasks') tasks(); else if (view === 'pack') packView(); else if (view === 'talk') talkView(); else if (view === 'album') albumView(); else settings();
+    jHydrate(document.getElementById('v-' + view));
     var sig = S.files.map(function (f) { return (f.pages || []).join(','); }).join('|'); if (sig !== wState.sig) walletSync();
   }
-  function busy() { return !!(editing || bkEdit || dayEdit || taskEdit || upOpen || expEdit || (ov && ov.t === 'sosEdit')); }
+  function busy() { return !!(editing || bkEdit || dayEdit || taskEdit || upOpen || expEdit || packEdit || (ov && (ov.t === 'sosEdit' || ov.t === 'jedit'))); }
   function go(v) {
     view = v; VIEWS.forEach(function (k) { $('v-' + k).hidden = (k !== v); });
-    var hl = TABS.indexOf(v) >= 0 ? v : (v === 'tasks' ? 'home' : '');
+    var hl = TABS.indexOf(v) >= 0 ? v : (['tasks', 'pack', 'talk', 'album'].indexOf(v) >= 0 ? 'home' : '');
     Array.prototype.forEach.call(document.querySelectorAll('nav.tabs button'), function (b) { if (b.dataset.v === hl) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     try { history.replaceState(null, '', '#' + v); } catch (e) {}
     render(); window.scrollTo(0, 0);
@@ -958,7 +1340,7 @@
       Store.rpc('undo_batch', { p_batch: bt }).then(function (n) { toast('되돌렸어요. (' + n + '건)'); return Store.sync(); }, function (e) { ub.disabled = false; toast('되돌리지 못했어요: ' + ((e && e.message) || '오류')); });
       return;
     }
-    var ck = el.closest('.chk');
+    var ck = el.closest('.chk[data-tid]');
     if (ck && !ck.disabled) {
       var t = S.tasks.filter(function (x) { return x.id === ck.dataset.tid; })[0]; if (!t) return; var nx = !t.done;
       Store.update('tasks', t.id, { done: nx, doneBy: nx ? myId() : null, doneAt: nx ? nowIso() : null }); return;
@@ -987,7 +1369,7 @@
     var pc = el.closest('[data-city]'); if (pc && el.closest('svg')) { pickMap('c:' + pc.dataset.city); return; }
     var pp = el.closest('[data-pin]'); if (pp) { pickMap('p:' + pp.dataset.pin); return; }
     /* 이동 */
-    var gg = el.closest('[data-go]'); if (gg) { go(gg.dataset.go); return; }
+    var gg = el.closest('[data-go]'); if (gg) { go(gg.dataset.go); var sc = gg.dataset.scroll && $(gg.dataset.scroll); if (sc) sc.scrollIntoView({ block: 'start' }); return; }
     if (el.closest('#gear')) { go('settings'); return; }
     /* 겹쳐 뜨는 화면 */
     if (el.closest('[data-ovclose]')) { ov = null; renderOv(); return; }
@@ -1027,6 +1409,33 @@
     if (el.closest('[data-dfav]')) { discFav = !discFav; discover(); return; }
     var fv = el.closest('[data-fav]'); if (fv) { toggleFav(fv.dataset.fav); return; }
     var pl = el.closest('[data-plan]'); if (pl) { askPlan(pl.dataset.plan); return; }
+    /* 짐 */
+    var pw = el.closest('[data-pwho]'); if (pw) { packWho = pw.dataset.pwho; packEdit = null; packView(); return; }
+    var pk = el.closest('[data-pchk]'); if (pk && !pk.disabled) { packToggle(pk.dataset.pchk); return; }
+    var pe = el.closest('[data-pedit]'); if (pe && !pe.disabled) { packEdit = pe.dataset.pedit; packView(); var pf = $('packf'); if (pf) pf.scrollIntoView({ block: 'center' }); return; }
+    if (el.closest('#pkadd')) { packEdit = 'new'; packView(); var pf2 = $('packf'); if (pf2) { pf2.scrollIntoView({ block: 'center' }); $('pkt').focus(); } return; }
+    if (el.closest('#pkcancel')) { packEdit = null; packView(); return; }
+    var pkd = el.closest('#pkdel');
+    if (pkd) { if (!pkd.dataset.sure) { pkd.dataset.sure = '1'; pkd.textContent = '한 번 더 누르면 삭제'; return; } Store.remove('packing', packEdit); packEdit = null; toast(savedMsg('지웠어요.')); render(); return; }
+    /* 회화 */
+    var tl = el.closest('[data-tlang]'); if (tl) { talkLang = tl.dataset.tlang; talkView(); return; }
+    var tc = el.closest('[data-tcat]'); if (tc) { talkCat = tc.dataset.tcat; talkView(); return; }
+    var sy = el.closest('[data-say]'); if (sy) { var ph0 = phraseById(sy.dataset.say), lg0 = (ov && ov.t === 'phrase' && ov.lang) || curLang(); if (ph0) speak(ph0[lg0], lg0, sy); return; }
+    var sw0 = el.closest('[data-show]'); if (sw0) { ov = { t: 'phrase', id: sw0.dataset.show, lang: curLang() }; renderOv(); return; }
+    /* 캘린더 */
+    if (el.closest('#calCopy')) { var cu = calUrl(calInfo.key); if (!cu) return; copyText(cu).then(function () { toast('구독 주소를 복사했어요.'); }, function () { toast('복사하지 못했어요.'); }); return; }
+    var cr = el.closest('#calRot');
+    if (cr) { if (!navigator.onLine) { toast('인터넷이 연결됐을 때 바꿀 수 있어요.'); return; } if (!cr.dataset.sure) { cr.dataset.sure = '1'; cr.textContent = '한 번 더 누르면 바꿔요 (옛 구독은 멈춰요)'; return; } calLoad(true); return; }
+    /* 기록 */
+    var jo = el.closest('[data-jot]'); if (jo) { openJot(jo.dataset.jot); return; }
+    var jr = el.closest('[data-jrm]');
+    if (jr && ov && ov.t === 'jedit') { var t0 = $('jt'); if (t0) ov.text = t0.value; var x0 = ov.ph.splice(+jr.dataset.jrm, 1)[0]; if (x0) { if (x0.url) URL.revokeObjectURL(x0.url); if (x0.p) ov.removed.push(x0.p, x0.t); } renderOv(); return; }
+    var jv = el.closest('[data-jview]');
+    if (jv) { var a0 = jv.dataset.jview.split('|'), all0 = jPhotos(a0[0]), k0 = 0; for (var q = 0; q < all0.length; q++) { if (all0[q].jid === a0[1]) { k0 = q + (+a0[2]); break; } } ov = { t: 'photo', date: a0[0], i: k0 }; renderOv(); return; }
+    var pn = el.closest('[data-pnav]'); if (pn && ov && ov.t === 'photo') { ov.i = (ov.i || 0) + (+pn.dataset.pnav); renderOv(); return; }
+    if (el.closest('[data-pshare]') && ov && ov.t === 'photo') { var cur0 = jPhotos(ov.date)[ov.i || 0]; if (cur0) shareFiles([cur0], md(cur0.date)); return; }
+    var js = el.closest('[data-jshare]'); if (js) { shareFiles(jPhotos(js.dataset.jshare), md(js.dataset.jshare) + ' 우리 신혼여행'); return; }
+    if (el.closest('#aprint')) { window.print(); return; }
     /* 알림 */
     var po = el.closest('#pushOn'); if (po) { pushEnable(po); return; }
     if (el.closest('#pushOff')) { pushOff(); return; }
@@ -1047,12 +1456,14 @@
       return;
     }
     if (t.name === 'excur') exPreview();
+    if (t.id === 'tslow') { talkSlow = t.checked; return; }
+    if (t.id === 'jph' && ov && ov.t === 'jedit') { jAddFiles(t.files); return; }
   });
   document.addEventListener('input', function (e) { if (e.target && e.target.id === 'exa') exPreview(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && ov) { ov = null; renderOv(); } });
-  window.addEventListener('hashchange', function () { var v = (location.hash || '').replace('#', ''); if (VIEWS.indexOf(v) >= 0 && v !== view) go(v); });
-  if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', function (e) { var g = e.data && e.data.go; if (g && VIEWS.indexOf(g) >= 0) go(g); });
-  window.addEventListener('online', function () { walletSync(true); });
+  window.addEventListener('hashchange', function () { var v = (location.hash || '').replace('#', ''); if (v) route(v); });
+  if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', function (e) { var g = e.data && e.data.go; if (g) route(g); });
+  window.addEventListener('online', function () { walletSync(true); jFlush(); });
   document.addEventListener('toggle', function (e) { var d = e.target; if (d && d.dataset && d.dataset.fold) foldOpen[d.dataset.fold] = d.open; }, true);
   document.addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('svg [role=button]')) { e.preventDefault(); e.target.dispatchEvent(new MouseEvent('click', { bubbles: true })); } });
   document.addEventListener('submit', function (e) {
@@ -1069,6 +1480,20 @@
     }
     if (!canEdit()) return;
     if (id === 'wupf') { doUpload(); return; }
+    if (id === 'jf') { jSave(); return; }
+    if (id === 'packf') {
+      var pt0 = $('pkt').value.trim(); if (!pt0) { toast('무엇을 챙길지 적어 주세요.'); return; }
+      var pd0 = { title: pt0, cat: (document.querySelector('input[name=pkc]:checked') || {}).value || 'bag', who: (document.querySelector('input[name=pkw]:checked') || {}).value || 'both', note: $('pkn').value.trim() };
+      var pid = e.target.dataset.id;
+      if (pid) { pd0.editedBy = myId(); pd0.editedAt = nowIso(); Store.update('packing', pid, pd0); }
+      else { pd0.order = 900 + S.packing.length; pd0.addedBy = myId(); Store.add('packing', pd0); }
+      packEdit = null; toast(savedMsg(pid ? '고쳤어요.' : '추가했어요.')); render(); return;
+    }
+    if (id === 'talkf') {
+      var tk = $('talkt').value.trim(); if (!tk) return;
+      Store.add('requests', { text: '[회화] ' + tk, at: nowIso(), by: myId(), status: '대기', reply: null });
+      $('talkt').value = ''; toast(savedMsg('부탁했어요. 1시간 안에 \'부탁한 문장\'에 들어가요.')); return;
+    }
     if (id === 'expf') {
       var amt = parseFloat(String($('exa').value).replace(/,/g, '')); if (!(amt > 0)) { toast('금액을 넣어 주세요.'); return; }
       var curv = (document.querySelector('input[name=excur]:checked') || {}).value || 'EUR', fxr = fx();
@@ -1142,6 +1567,8 @@
   var h0 = (location.hash || '').replace('#', ''); if (VIEWS.indexOf(h0) >= 0) view = h0;
   go(view);
   Store.start();
+  if (h0 === 'jot') { var jotOnce = function () { if (Store.status.mode === 'ready' || Store.status.mode === 'demo') { if (loaded) { route('jot'); return true; } } return false; }; if (!jotOnce()) { var jt0 = setInterval(function () { if (jotOnce()) clearInterval(jt0); }, 300); setTimeout(function () { clearInterval(jt0); }, 8000); } }
+  setTimeout(jFlush, 2000);
 
   /* 서비스 워커: 오프라인 보기 */
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
