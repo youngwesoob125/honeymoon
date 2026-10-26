@@ -514,6 +514,37 @@ body.ovopen{overflow:hidden}
   .album .aday{break-inside:avoid;box-shadow:none;border:1px solid #ccc}
 }
 
+
+/* 대비책 */
+.ptag{display:inline-flex;align-items:center;gap:3px;vertical-align:2px;font-family:"Gowun Dodum",sans-serif;font-size:12px;font-weight:700;line-height:1.5;color:var(--azul);background:var(--azul-2);border-radius:999px;padding:1px 8px;white-space:nowrap}
+.ptag.act{color:var(--naranja);background:var(--naranja-2)}
+.pl-row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:0;border-bottom:1.5px dashed var(--line);padding:9px 0;cursor:pointer;color:var(--ink);font:inherit;font-size:14.5px}
+.pl-row:last-child{border-bottom:0}
+.pl-row>span:nth-child(2){flex:1;min-width:0}
+.pl-row .go{color:var(--azul);font-family:"Jua",sans-serif;font-size:13.5px;white-space:nowrap}
+.pl-row.act>span:nth-child(2){font-weight:700}
+.pl-day{margin-top:10px;border-top:1.5px dashed var(--line);padding-top:6px}
+.pl-item{border-bottom:1.5px dashed var(--line)}.pl-item:last-child{border-bottom:0}.pl-item .pl-row{border-bottom:0}
+.pl-first{font-size:13.5px;color:var(--naranja);margin:-2px 0 9px}
+.pl-home{display:block;width:100%;text-align:left;border:0;cursor:pointer;color:var(--ink);font:inherit}
+.pl-home .disp{display:block;font-size:16.5px;margin-bottom:2px}
+.pl-home.act,.pl-sum.act,.plan.act{border:2px solid var(--naranja)}
+.pl-sum .disp{display:block;font-size:17px;margin-bottom:2px}
+.plan .pl-t{display:block;font-size:17.5px;margin:4px 0 2px;line-height:1.35}
+.pl-risk{margin:4px 0;font-size:14.5px;line-height:1.55}
+.pl-note{background:var(--tram-2);border-radius:10px;padding:7px 10px;font-size:14px;margin:6px 0}
+.pl-know{margin:4px 0 2px}
+.pl-d{margin-top:8px;border-top:1.5px dashed var(--line)}
+.pl-d summary{cursor:pointer;padding:9px 0 4px;font-family:"Jua",sans-serif;font-size:15.5px;color:var(--azul);list-style:none}
+.pl-d summary::-webkit-details-marker{display:none}
+.pl-d summary::after{content:" ＋";color:var(--soft)}
+.pl-d[open] summary::after{content:" －"}
+.pl-steps,.pl-alt,.pl-prep,.pl-basic ul{margin:4px 0 6px;padding-left:20px;font-size:14.5px;line-height:1.55}
+.pl-steps li,.pl-alt li,.pl-prep li,.pl-basic li{margin:3px 0}
+.pl-sub{font-family:"Jua",sans-serif;font-size:14px;color:var(--soft);margin-top:8px}
+.pl-links{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pl-links a{font-size:13px;color:var(--azul);background:var(--azul-2);border-radius:999px;padding:3px 10px;text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl-basic{padding-bottom:12px}
 </style>
 </head>
 <body>
@@ -531,6 +562,7 @@ body.ovopen{overflow:hidden}
   <section id="v-pack" hidden></section>
   <section id="v-talk" hidden></section>
   <section id="v-album" hidden></section>
+  <section id="v-plan" hidden></section>
 </div>
 <nav class="tabs" aria-label="화면 이동"><div class="in">
   <button data-v="home" aria-current="page"><span class="ic">🏠</span>홈</button>

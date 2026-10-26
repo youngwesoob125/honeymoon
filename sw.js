@@ -2,7 +2,7 @@
    - 앱 화면 파일은 먼저 저장본으로 빠르게 열고, 뒤에서 새 버전을 받아 둔다.
    - 글꼴과 Supabase 라이브러리는 한 번 받으면 저장해 둔다.
    - 데이터(Supabase API)는 저장하지 않는다. 데이터 저장본은 앱이 따로 관리한다. */
-var VERSION = 'hm-v6';
+var VERSION = 'hm-v7';
 var SHELL = ['./', './index.html', './app.js', './store.js', './config.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 var LIB = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.97.0/dist/umd/supabase.js';

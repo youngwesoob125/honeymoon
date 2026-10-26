@@ -1,7 +1,7 @@
 /* 우리 신혼여행: 화면 */
 (function () {
-  var S = { meta: null, cities: [], days: [], tasks: [], watch: [], log: [], briefs: [], props: [], reqs: [], places: [], pins: [], tours: [], shops: [], weather: [], bookings: [], legs: [], files: [], expenses: [], events: [], eats: [], packing: [], phrases: [], journal: [] };
-  var MAP = { cities: 'cities', days: 'days', tasks: 'tasks', watch: 'watch', log: 'log', briefs: 'briefs', props: 'proposals', reqs: 'requests', places: 'places', pins: 'pins', tours: 'tours', shops: 'shops', weather: 'weather', bookings: 'bookings', legs: 'legs', files: 'files', expenses: 'expenses', events: 'events', eats: 'restaurants', packing: 'packing', phrases: 'phrases', journal: 'journal' };
+  var S = { meta: null, cities: [], days: [], tasks: [], watch: [], log: [], briefs: [], props: [], reqs: [], places: [], pins: [], tours: [], shops: [], weather: [], bookings: [], legs: [], files: [], expenses: [], events: [], eats: [], packing: [], phrases: [], journal: [], plans: [] };
+  var MAP = { cities: 'cities', days: 'days', tasks: 'tasks', watch: 'watch', log: 'log', briefs: 'briefs', props: 'proposals', reqs: 'requests', places: 'places', pins: 'pins', tours: 'tours', shops: 'shops', weather: 'weather', bookings: 'bookings', legs: 'legs', files: 'files', expenses: 'expenses', events: 'events', eats: 'restaurants', packing: 'packing', phrases: 'phrases', journal: 'journal', plans: 'plans' };
   var loaded = false, view = 'home', editing = null, sel = null, openDays = {}, bkEdit = null, lastMode = null, dayEdit = null, taskEdit = null, foldOpen = {}, undoArm = null;
   var discTab = 'now', discCity = '', discFav = false, walletSeg = 'tix', upOpen = null, upBusy = '', expEdit = null, ov = null, pushInfo = { state: '' };
   var packWho = null, packEdit = null, talkLang = '', talkCat = '', talkSlow = false, calInfo = { key: null, busy: false, err: '' };
@@ -11,7 +11,7 @@
   var BK = [['stay', '🏨', '숙소'], ['move', '🚆', '교통'], ['ticket', '🎟️', '입장권'], ['tour', '🚌', '투어'], ['eat', '🍽️', '식당'], ['etc', '📌', '기타']];
   var IATA = { '인천': 'ICN', '리스본': 'LIS', '포르투': 'OPO', '세비야': 'SVQ', '그라나다': 'GRX', '바르셀로나': 'BCN', '마드리드': 'MAD' };
   var LEGACY = (window.HM_CONFIG && window.HM_CONFIG.legacyNames) || {};
-  var VIEWS = ['home', 'days', 'map', 'wallet', 'discover', 'tasks', 'settings', 'pack', 'talk', 'album'];
+  var VIEWS = ['home', 'days', 'map', 'wallet', 'discover', 'tasks', 'settings', 'pack', 'talk', 'album', 'plan'];
   var TABS = ['home', 'days', 'map', 'wallet', 'discover'];
   function bkIcon(k) { for (var i = 0; i < BK.length; i++) if (BK[i][0] === k) return BK[i][1]; return '📌'; }
   /* 교통 예약 중 편명(KE921, FR5467 같은)으로 시작하면 비행기 */
@@ -103,6 +103,7 @@
         (p.why ? '<div class="small" style="margin-top:4px">' + esc(p.why) + '</div>' : '') + (p.change ? '<div style="margin-top:4px;font-size:14px;color:var(--azul)">' + esc(p.change) + '</div>' : '') +
         (rq ? '<div class="small" style="margin-top:6px">다음 점검 때 일정에 반영돼요.</div>' : '<div class="acts"><button class="btn fill pbtn" data-id="' + esc(p.id) + '" data-act="apply"' + (canEdit() ? '' : ' disabled') + '>일정에 반영</button><button class="btn pbtn" data-id="' + esc(p.id) + '" data-act="hold"' + (canEdit() ? '' : ' disabled') + '>보류</button></div>') + '</div>';
     });
+    h += plHome();
     var wk = sortedTasks().filter(function (x) { var n = diff(x.due); return !x.done && n !== null && n <= 7; }).slice(0, 6);
     var openN = S.tasks.filter(function (x) { return !x.done; }).length;
     h += '<div class="h2row"><h2><span class="em">⏰</span>이번 주 할 일</h2><button type="button" class="more" data-go="tasks">전체 ' + openN + '개 ›</button></div>';
@@ -191,11 +192,11 @@
       var tp = dayTrip(d.date);
       h += '<article class="day' + (d.kind === 'rest' ? ' rest' : '') + (isT ? ' today' : '') + '" id="day-' + esc(d.id) + '"><button class="day-h" data-day="' + esc(d.id) + '" aria-expanded="' + (open ? 'true' : 'false') + '">' +
         '<span class="dbadge"><span class="m">' + (dd.getMonth() + 1) + '월</span><span class="dd">' + dd.getDate() + '</span><span class="w">' + DOW[dd.getDay()] + '</span></span>' +
-        '<span class="dh-txt"><span class="dh-city">' + esc(d.city) + (tp ? ' <span class="dtag"><i class="ddot"></i>당일치기</span>' : '') + '</span><span class="dh-head">' + esc(d.headline || '') + '</span></span>' +
+        '<span class="dh-txt"><span class="dh-city">' + esc(d.city) + (tp ? ' <span class="dtag"><i class="ddot"></i>당일치기</span>' : '') + plTag(d.date) + '</span><span class="dh-head">' + esc(d.headline || '') + '</span></span>' +
         (w ? '<span class="wchip">' + (w.fc ? '🌤️' : '🌡️') + '<br>' + esc(w.txt.replace('평년 ', '')) + '</span>' : '') + '</button>' +
         '<div class="day-b"' + (open ? '' : ' hidden') + '>' + (dayEdit === d.id ? dayForm(d) :
         dayBk(d.date) + '<ul>' + (d.items || []).map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>' +
-        placeChips(d.date) +
+        placeChips(d.date) + plDay(d.date) +
         ((d.notes && d.notes.length) ? '<div class="dnote">' + d.notes.map(esc).join('<br>') + '</div>' : '') + jDayBlock(d.date) +
         (canEdit() ? '<div class="acts"><button type="button" class="btn small-btn" data-dedit="' + esc(d.id) + '">✏️ 이 날 일정 고치기</button></div>' : '')) + '</div></article>';
     });
@@ -439,6 +440,7 @@
     }).join('') + '</ol>';
     if (tix.length) h += '<div class="tp-sec"><span class="tp-lab">오늘 쓸 티켓</span><div class="tp-tix">' + tix.map(function (f) { return '<button type="button" class="tix" data-wopen="' + esc(f.id) + '">' + thumb(f) + '<span>' + esc(f.label) + '</span></button>'; }).join('') + '</div></div>';
     if (lg.length) h += '<div class="tp-sec"><span class="tp-lab">이동</span><div class="mlegs">' + lg.map(function (l) { var m = MODE[l.mode] || MODE.transit; return '<a class="mleg" target="_blank" rel="noopener" href="' + esc(legUrl(l)) + '"><span>' + m[0] + ' ' + esc(l.title) + '</span><span class="go">길찾기</span></a>'; }).join('') + '</div></div>';
+    h += plToday(t);
     h += '<div class="tp-meta">' + (w ? '<span>' + (w.fc ? '🌤️ ' : '🌡️ 평년 ') + esc(w.txt.replace('평년 ', '')) + '</span>' : '') + (f ? '<span>💶 1€ = ' + won(f.rate) + '원</span>' : '') + '</div>';
     var jm = jMine(t);
     h += '<div class="acts"><button type="button" class="btn fill" data-ov="driver">🚕 기사님께 보여주기</button><button type="button" class="btn" data-ov="sos">🆘 비상 연락처</button>' +
@@ -1193,6 +1195,74 @@
         return navigator.share({ files: fs, title: title || '우리 신혼여행' });
       }).catch(function (e) { if (e && e.name !== 'AbortError') toast('공유하지 못했어요.'); });
   }
+  /* ---------- 대비책 (파업·시위) ---------- */
+  var PST = { '예고 없음': 'mute', '지켜보는 중': 'blue', '예고됨': 'ora', '발생': 'ora', '해소': 'ok' };
+  function plActive(p) { return p.status === '예고됨' || p.status === '발생'; }
+  function plList() { return S.plans.slice().sort(byOrder); }
+  function plFor(date) { return plList().filter(function (p) { return p.from && date >= p.from && date <= (p.to || p.from); }); }
+  function plRange(p) { if (!p.from) return '여행 전체'; var a = smd(p.from), b = smd(p.to || p.from); return a === b ? md(p.from) : a + '~' + b; }
+  function plChip(p) { var st = p.status || '예고 없음'; return '<span class="chip ' + (PST[st] || 'mute') + '">' + esc(st) + '</span>'; }
+  function plLast() { return plList().map(function (p) { return p.checkedAt || ''; }).sort().pop() || ''; }
+  function safeUrl(u) { return /^https:\/\//.test(String(u || '')) ? String(u) : ''; }
+  function plTag(date) {
+    var l = plFor(date); if (!l.length) return '';
+    var act = l.some(plActive);
+    return ' <span class="ptag' + (act ? ' act' : '') + '" title="대비책">🛟' + (act ? ' 주의' : '') + '</span>';
+  }
+  function plRow(p) {
+    return '<button type="button" class="pl-row' + (plActive(p) ? ' act' : '') + '" data-go="plan" data-scroll="pl-' + esc(p.id) + '">' + plChip(p) + '<span>' + esc(p.title) + '</span><span class="go">대비책 ›</span></button>';
+  }
+  function plDay(date) {
+    var l = plFor(date); if (!l.length) return '';
+    return '<div class="pl-day"><span class="tp-lab">🛟 대비책</span>' + l.map(plRow).join('') + '</div>';
+  }
+  function plToday(t) {
+    var l = plFor(t); if (!l.length) return '';
+    return '<div class="tp-sec"><span class="tp-lab">🛟 오늘의 대비책</span>' + l.map(function (p) {
+      return '<div class="pl-item">' + plRow(p) + (plActive(p) && p.plan && p.plan[0] ? '<div class="pl-first">' + esc(p.plan[0]) + '</div>' : '') + '</div>';
+    }).join('') + '</div>';
+  }
+  function plHome() {
+    var ps = plList(); if (!ps.length) return '';
+    var m = S.meta || {}, t = ymd(today()); if (m.ret && t > m.ret) return '';
+    var act = ps.filter(plActive), watching = ps.filter(function (p) { return p.status === '지켜보는 중'; }).length, last = plLast();
+    var h = '<div class="h2row"><h2><span class="em">🛟</span>대비책</h2><button type="button" class="more" data-go="plan">전체 ' + ps.length + '개 ›</button></div>';
+    if (act.length) return h + '<div class="card pl-home act">' + act.map(plRow).join('') + '</div>';
+    return h + '<button type="button" class="card pl-home" data-go="plan"><b class="disp">우리 날짜에 예고된 파업은 아직 없어요</b><span class="small">' +
+      (watching ? '시위 ' + watching + '곳 지켜보는 중 · ' : '') + '구간별로 그때 할 일과 대체 수단을 정리해 뒀어요' + (last ? ' · ' + esc(smd(last)) + ' 확인' : '') + '</span></button>';
+  }
+  function plCard(p) {
+    var act = plActive(p), k = 'pl-' + p.id, open = foldOpen[k] !== undefined ? foldOpen[k] : act;
+    var h = '<article class="card plan' + (act ? ' act' : '') + '" id="pl-' + esc(p.id) + '"><div class="row"><span class="small">' + esc(plRange(p)) + (p.city ? ' · ' + esc(p.city) : '') + (p.kind ? ' · ' + esc(p.kind) : '') + '</span>' + plChip(p) + '</div>' +
+      '<b class="disp pl-t">' + esc(p.title) + '</b>' + (p.risk ? '<p class="pl-risk">' + esc(p.risk) + '</p>' : '') +
+      (p.note ? '<div class="pl-note">' + esc(p.note) + (p.checkedAt ? ' <span class="small">' + esc(smd(p.checkedAt)) + ' 확인</span>' : '') + '</div>' : '') +
+      (p.know ? '<div class="small pl-know">🔎 언제 알 수 있나: ' + esc(p.know) + '</div>' : '');
+    var steps = (p.plan || []), alt = (p.alt || []);
+    if (steps.length || alt.length) h += '<details class="pl-d" data-fold="' + esc(k) + '"' + (open ? ' open' : '') + '><summary>그때 할 일</summary>' +
+      (steps.length ? '<ol class="pl-steps">' + steps.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '') +
+      (alt.length ? '<div class="pl-sub">대체 수단</div><ul class="pl-alt">' + alt.map(function (a) { return '<li><b>' + esc(a.t) + '</b>' + (a.d ? ' · ' + esc(a.d) : '') + '</li>'; }).join('') + '</ul>' : '') + '</details>';
+    if (p.prep && p.prep.length) h += '<div class="pl-sub">지금 해 둘 것</div><ul class="pl-prep">' + p.prep.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
+    var ln = (p.links || []).filter(function (l) { return safeUrl(l.u); });
+    if (ln.length) h += '<div class="pl-links">' + ln.map(function (l) { return '<a target="_blank" rel="noopener" href="' + esc(safeUrl(l.u)) + '">' + esc(l.t || l.u) + ' ↗</a>'; }).join('') + '</div>';
+    return h + '</article>';
+  }
+  function planView() {
+    var ps = plList(), act = ps.filter(plActive), watching = ps.filter(function (p) { return p.status === '지켜보는 중'; }).length, last = plLast();
+    var h = '<button type="button" class="back" data-go="home">‹ 홈</button><h2 style="margin-top:6px"><span class="em">🛟</span>대비책</h2>' +
+      '<p class="hint">파업·시위가 생기면 구간마다 할 일과 대체 수단을 정리했어요. 매일 아침 점검 때 상태를 고쳐요.</p>';
+    if (!ps.length) { $('v-plan').innerHTML = h + '<div class="empty">' + (loaded ? '아직 정리된 대비책이 없어요.' : '불러오는 중') + '</div>'; return; }
+    h += '<div class="card pl-sum' + (act.length ? ' act' : '') + '"><b class="disp">' + (act.length ? '예고된 파업·시위 ' + act.length + '건' : '우리 날짜에 예고된 파업은 아직 없어요') + '</b>' +
+      '<div class="small">' + ps.length + '개 구간을 확인해요' + (watching ? ' · 시위 ' + watching + '곳 지켜보는 중' : '') + (last ? ' · 마지막 확인 ' + esc(smd(last)) : '') + '</div>' +
+      (act.length ? act.map(plRow).join('') : '') + '</div>';
+    h += ps.map(plCard).join('');
+    h += '<details class="fold"' + foldAttr('plbasic') + '><summary>🧭 어디서든 통하는 기본</summary><div class="pl-basic">' +
+      '<div class="pl-sub">시위 현장을 마주치면</div><ul><li>사진 찍지 말고 바로 다른 길로 벗어나요</li><li>경찰 저지선 쪽으로 가지 않아요</li><li>지하철역이 닫히면 한 정거장 걸어서 다음 역으로</li></ul>' +
+      '<div class="pl-sub">비행기가 결항·지연되면 (EU 규정)</div><ul><li>결항: 다른 항공편이나 환불 중 고를 수 있어요</li><li>2시간 넘게 늦으면 식사, 하룻밤 넘기면 숙소를 받아요</li><li>항공사 직원 파업이 원인이면 보상금도 청구할 수 있어요 (1,500km 이하 1인 €250). 관제 파업은 보상 대상이 아니에요</li></ul>' +
+      '<div class="pl-sub">기차가 파업하면</div><ul><li>Renfe·CP는 파업으로 취소된 표를 환불하거나 다른 열차로 바꿔 줘요</li><li>최소 운행 열차 목록은 보통 하루이틀 전에 나와요. 내 열차가 남는지 확인해요</li></ul>' +
+      '<div class="acts"><button type="button" class="btn" data-ov="sos">🆘 비상 연락처</button></div></div></details>';
+    $('v-plan').innerHTML = h;
+  }
+
   function route(h) {
     if (h === 'jot') {
       var t = ymd(today());
@@ -1204,7 +1274,7 @@
   }
 
   /* ---------- 설정 ---------- */
-  var DEFPREFS = { brief: true, tasks: true, claude: true, trip: true, journal: true };
+  var DEFPREFS = { brief: true, tasks: true, claude: true, trip: true, journal: true, plan: true };
   function isIOS() { return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
   function u8(b64) { var s = b64.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; var r = atob(s), a = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) a[i] = r.charCodeAt(i); return a; }
   function pushRefresh() {
@@ -1226,7 +1296,7 @@
     if (s === 'off') return '<p class="small">브리핑, 할 일 마감, Claude 반영 소식, 여행 중 출발 알림을 이 폰으로 받아요. 두 사람 각자 켜야 해요.</p><div class="acts"><button type="button" class="btn fill" id="pushOn">🔔 이 폰에서 알림 켜기</button></div>';
     var p = pushInfo.prefs || DEFPREFS;
     return '<p class="small" style="color:var(--oliva)">✓ 이 폰에서 알림을 받고 있어요.</p>' +
-      [['brief', '아침 브리핑 (매일 7시 50분쯤)'], ['tasks', '할 일 마감 하루 전·당일 아침 9시, 출발 전 짐 체크'], ['claude', 'Claude가 요청을 반영했을 때, 새 변경 제안'], ['trip', '여행 중: 전날 밤 9시 내일 일정, 비행·기차 3시간 전'], ['journal', '여행 중 밤 10시: 그날 기록을 아직 안 남겼을 때']].map(function (k) {
+      [['brief', '아침 브리핑 (매일 7시 50분쯤)'], ['tasks', '할 일 마감 하루 전·당일 아침 9시, 출발 전 짐 체크'], ['claude', 'Claude가 요청을 반영했을 때, 새 변경 제안'], ['trip', '여행 중: 전날 밤 9시 내일 일정, 비행·기차 3시간 전'], ['journal', '여행 중 밤 10시: 그날 기록을 아직 안 남겼을 때'], ['plan', '대비책: 우리 날짜에 파업·시위가 새로 예고됐을 때']].map(function (k) {
         return '<label class="chkrow"><input type="checkbox" data-pp="' + k[0] + '"' + (p[k[0]] !== false ? ' checked' : '') + '> ' + k[1] + '</label>';
       }).join('') + '<div class="acts"><button type="button" class="btn small-btn" id="pushTest">테스트 알림 보내기</button><button type="button" class="btn small-btn del" id="pushOff">이 폰 알림 끄기</button></div>';
   }
@@ -1301,14 +1371,14 @@
     if (gate) { if (lastMode !== mode || !$('v-login').innerHTML) loginView(); lastMode = mode; return; }
     lastMode = mode;
     pull(); header();
-    if (view === 'home') home(); else if (view === 'days') days(); else if (view === 'map') mapView(); else if (view === 'wallet') wallet(); else if (view === 'discover') discover(); else if (view === 'tasks') tasks(); else if (view === 'pack') packView(); else if (view === 'talk') talkView(); else if (view === 'album') albumView(); else settings();
+    if (view === 'home') home(); else if (view === 'days') days(); else if (view === 'map') mapView(); else if (view === 'wallet') wallet(); else if (view === 'discover') discover(); else if (view === 'tasks') tasks(); else if (view === 'pack') packView(); else if (view === 'talk') talkView(); else if (view === 'album') albumView(); else if (view === 'plan') planView(); else settings();
     jHydrate(document.getElementById('v-' + view));
     var sig = S.files.map(function (f) { return (f.pages || []).join(','); }).join('|'); if (sig !== wState.sig) walletSync();
   }
   function busy() { return !!(editing || bkEdit || dayEdit || taskEdit || upOpen || expEdit || packEdit || (ov && (ov.t === 'sosEdit' || ov.t === 'jedit'))); }
   function go(v) {
     view = v; VIEWS.forEach(function (k) { $('v-' + k).hidden = (k !== v); });
-    var hl = TABS.indexOf(v) >= 0 ? v : (['tasks', 'pack', 'talk', 'album'].indexOf(v) >= 0 ? 'home' : '');
+    var hl = TABS.indexOf(v) >= 0 ? v : (['tasks', 'pack', 'talk', 'album', 'plan'].indexOf(v) >= 0 ? 'home' : '');
     Array.prototype.forEach.call(document.querySelectorAll('nav.tabs button'), function (b) { if (b.dataset.v === hl) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     try { history.replaceState(null, '', '#' + v); } catch (e) {}
     render(); window.scrollTo(0, 0);
@@ -1369,7 +1439,7 @@
     var pc = el.closest('[data-city]'); if (pc && el.closest('svg')) { pickMap('c:' + pc.dataset.city); return; }
     var pp = el.closest('[data-pin]'); if (pp) { pickMap('p:' + pp.dataset.pin); return; }
     /* 이동 */
-    var gg = el.closest('[data-go]'); if (gg) { go(gg.dataset.go); var sc = gg.dataset.scroll && $(gg.dataset.scroll); if (sc) sc.scrollIntoView({ block: 'start' }); return; }
+    var gg = el.closest('[data-go]'); if (gg) { go(gg.dataset.go); var sc = gg.dataset.scroll && $(gg.dataset.scroll); if (sc) { var dt = sc.querySelector('details.pl-d'); if (dt) { dt.open = true; foldOpen[dt.dataset.fold] = true; } sc.scrollIntoView({ block: 'start' }); } return; }
     if (el.closest('#gear')) { go('settings'); return; }
     /* 겹쳐 뜨는 화면 */
     if (el.closest('[data-ovclose]')) { ov = null; renderOv(); return; }
