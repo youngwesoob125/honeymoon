@@ -1,7 +1,7 @@
 /* 우리 신혼여행: 화면 */
 (function () {
-  var S = { meta: null, cities: [], days: [], tasks: [], watch: [], log: [], briefs: [], props: [], reqs: [], places: [], pins: [], tours: [], shops: [], weather: [], bookings: [], legs: [], files: [], expenses: [], events: [], eats: [], packing: [], phrases: [], journal: [], plans: [] };
-  var MAP = { cities: 'cities', days: 'days', tasks: 'tasks', watch: 'watch', log: 'log', briefs: 'briefs', props: 'proposals', reqs: 'requests', places: 'places', pins: 'pins', tours: 'tours', shops: 'shops', weather: 'weather', bookings: 'bookings', legs: 'legs', files: 'files', expenses: 'expenses', events: 'events', eats: 'restaurants', packing: 'packing', phrases: 'phrases', journal: 'journal', plans: 'plans' };
+  var S = { meta: null, cities: [], days: [], tasks: [], watch: [], log: [], briefs: [], props: [], reqs: [], places: [], pins: [], tours: [], shops: [], weather: [], bookings: [], legs: [], files: [], expenses: [], events: [], eats: [], packing: [], phrases: [], journal: [], plans: [], wdc: [] };
+  var MAP = { cities: 'cities', days: 'days', tasks: 'tasks', watch: 'watch', log: 'log', briefs: 'briefs', props: 'proposals', reqs: 'requests', places: 'places', pins: 'pins', tours: 'tours', shops: 'shops', weather: 'weather', bookings: 'bookings', legs: 'legs', files: 'files', expenses: 'expenses', events: 'events', eats: 'restaurants', packing: 'packing', phrases: 'phrases', journal: 'journal', plans: 'plans', wdc: 'wd_check' };
   var loaded = false, view = 'home', editing = null, sel = null, openDays = {}, bkEdit = null, lastMode = null, dayEdit = null, taskEdit = null, foldOpen = {}, undoArm = null;
   var discTab = 'now', discCity = '', discFav = false, walletSeg = 'tix', upOpen = null, upBusy = '', expEdit = null, ov = null, pushInfo = { state: '' };
   var packWho = null, packEdit = null, talkLang = '', talkCat = '', talkSlow = false, calInfo = { key: null, busy: false, err: '' };
@@ -11,8 +11,8 @@
   var BK = [['stay', '🏨', '숙소'], ['move', '🚆', '교통'], ['ticket', '🎟️', '입장권'], ['tour', '🚌', '투어'], ['eat', '🍽️', '식당'], ['etc', '📌', '기타']];
   var IATA = { '인천': 'ICN', '리스본': 'LIS', '포르투': 'OPO', '세비야': 'SVQ', '그라나다': 'GRX', '바르셀로나': 'BCN', '마드리드': 'MAD' };
   var LEGACY = (window.HM_CONFIG && window.HM_CONFIG.legacyNames) || {};
-  var VIEWS = ['home', 'days', 'map', 'wallet', 'discover', 'tasks', 'settings', 'pack', 'talk', 'album', 'plan'];
-  var TABS = ['home', 'days', 'map', 'wallet', 'discover'];
+  var VIEWS = ['home', 'days', 'map', 'wallet', 'discover', 'tasks', 'settings', 'pack', 'talk', 'album', 'plan', 'wed'];
+  var TABS = ['home', 'wed', 'days', 'map', 'wallet', 'discover'];
   function bkIcon(k) { for (var i = 0; i < BK.length; i++) if (BK[i][0] === k) return BK[i][1]; return '📌'; }
   /* 교통 예약 중 편명(KE921, FR5467 같은)으로 시작하면 비행기 */
   function bkIco(b) { return b.kind === 'move' && /^[A-Z0-9]{2}\s?\d{2,4}\b/.test(b.title || '') ? '✈️' : bkIcon(b.kind); }
@@ -91,7 +91,7 @@
       '<div class="stub"><span class="n">' + (1 - a) + '</span><span class="l">일째</span></div></div>';
   }
   function home() {
-    var t = ymd(today()), h = installHint() + hero() + toolsRow();
+    var t = ymd(today()), h = installHint() + hero() + toolsRow() + wedHome();
     var br = S.briefs.slice().sort(function (x, y) { return (x.date || '') < (y.date || '') ? 1 : -1; })[0];
     h += '<h2><span class="em">📝</span>오늘의 브리핑</h2>';
     h += br ? '<div class="memo"><div class="d">' + esc(md(br.date)) + (diff(br.date) === 0 ? ', 오늘' : '') + '</div><h3>' + esc(br.headline || '') + '</h3>' +
@@ -1195,6 +1195,161 @@
         return navigator.share({ files: fs, title: title || '우리 신혼여행' });
       }).catch(function (e) { if (e && e.name !== 'AbortError') toast('공유하지 못했어요.'); });
   }
+  /* ---------- 결혼식 탭 (11/21까지, 지나면 자동 정리) ---------- */
+  var WSEC = [['sum', '한눈에'], ['todo', '할 일'], ['day', '당일'], ['order', '식순'], ['words', '서약·선언'], ['venue', '엘블레스'], ['src', '출처']];
+  var wSec = 'sum', wArea = '', wCleaned = false;
+  function realYmd() { var d = new Date(); return ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate())); }
+  function wInfo(id) { return Store.get('wd_info', id); }
+  function wMeta() { return wInfo('meta'); }
+  function wOn() { var m = wMeta(); return !!(m && realYmd() <= (m.until || m.date)); }
+  function wLeft(s) { return Math.round((pd(s) - pd(realYmd())) / 86400000); }
+  function wD(s) { var n = wLeft(s); return n > 0 ? 'D-' + n : n === 0 ? 'D-DAY' : '지남'; }
+  function wList(kind) { return S.wdc.filter(function (x) { return x.kind === kind; }).sort(byOrder); }
+  function wNote(id, cls) { var n = wInfo('notes'), t = n && n.map ? n.map[id] : ''; return t ? '<p class="wnote' + (cls ? ' ' + cls : '') + '">' + esc(t) + '</p>' : ''; }
+  function wNoteTxt(id) { var n = wInfo('notes'); return (n && n.map && n.map[id]) || ''; }
+  function wRows(id) { var x = wInfo(id); return (x && x.rows) || []; }
+  function wTab() {
+    var on = wOn(), b = document.querySelector('nav.tabs [data-v=wed]');
+    if (b) b.hidden = !on;
+    if (!on && view === 'wed') { view = 'home'; VIEWS.forEach(function (k) { $('v-' + k).hidden = (k !== 'home'); }); }
+    wCleanup();
+  }
+  function wCleanup() {
+    if (wCleaned || !loaded || !canEdit() || !navigator.onLine) return;
+    var m = wMeta(); if (!m || realYmd() <= (m.until || m.date)) return;
+    wCleaned = true;
+    S.wdc.forEach(function (x) { Store.remove('wd_check', x.id); });
+    Store.list('wd_info').filter(function (x) { return x.id !== 'meta'; }).forEach(function (x) { Store.remove('wd_info', x.id); });
+    Store.remove('wd_info', 'meta');
+  }
+  function wNext() {
+    var t = realYmd(), l = wList('due').filter(function (x) { return !x.done && x.due >= t; });
+    if (!l.length) return null;
+    var same = l.filter(function (x) { return x.due === l[0].due; });
+    return { due: l[0].due, when: l[0].when, txt: same.length > 1 ? l[0].short + ' 외 ' + (same.length - 1) + '건' : l[0].short };
+  }
+  function wedHome() {
+    if (!wOn()) return '';
+    var m = wMeta(), nx = wNext(), pl = wList('plan'), dn = pl.filter(function (x) { return x.done; }).length;
+    return '<button type="button" class="card wed-home" data-go="wed"><span class="wh-ring">💍</span><span class="wh-t"><b class="disp">결혼식 ' + esc(wD(m.date)) + '</b><span class="small">' +
+      (nx ? '다음 마감 ' + esc(nx.when) + ' ' + esc(nx.txt) + ' · ' : '') + '할 일 ' + dn + '/' + pl.length + '</span></span><span class="go">›</span></button>';
+  }
+  function wChk(x, text, meta) {
+    var who = x.done ? (x.doneBy ? whoName(x.doneBy) + ' 체크' : '완료') : '';
+    return '<div class="task wtask' + (x.done ? ' done' : '') + '"><button class="chk" role="checkbox" aria-checked="' + (x.done ? 'true' : 'false') + '" aria-label="' + esc(text) + '" data-wchk="' + esc(x.id) + '"' + (canEdit() ? '' : ' disabled') + '></button>' +
+      '<div class="wt">' + esc(text) + '</div>' + ((meta || who) ? '<div class="tm">' + (meta || '') + (who ? '<span class="who">' + esc(who) + '</span>' : '') + '</div>' : '') + '</div>';
+  }
+  function wToggle(id) {
+    var x = S.wdc.filter(function (y) { return y.id === id; })[0]; if (!x) return;
+    var on = !x.done;
+    Store.update('wd_check', id, on ? { done: true, doneBy: myId(), doneAt: nowIso() } : { done: false, doneBy: null, doneAt: null });
+  }
+  function wSegs() {
+    return '<div class="wsegs" role="tablist" aria-label="결혼식 영역">' + WSEC.map(function (s) { return '<button type="button" role="tab" data-wsec="' + s[0] + '" aria-selected="' + (wSec === s[0]) + '">' + s[1] + '</button>'; }).join('') + '</div>';
+  }
+  function wDue(x) {
+    var n = wLeft(x.due), cls = n < 0 ? 'late' : n <= 7 ? 'soon' : '';
+    return wChk(x, x.text, '<span class="due ' + cls + '">' + esc(x.when) + ' · ' + esc(wD(x.due)) + '</span><span class="chip ' + (x.req === '필수' ? 'ora' : 'mute') + '">' + esc(x.req) + '</span>' + (x.tip ? '<span class="wtip">' + esc(x.tip) + '</span>' : '') + '<span class="wrule">' + esc(x.rule) + '</span>');
+  }
+  function wPlanItem(x, showWhen) {
+    var late = !x.done && x.end < realYmd();
+    return wChk(x, x.text, (showWhen ? '<span class="due' + (late ? ' late' : '') + '">' + esc(x.when) + (late ? ' (지남)' : '') + '</span>' : (late ? '<span class="due late">지남</span>' : '')) + '<span>' + esc(x.area) + '</span>');
+  }
+  function wSum() {
+    var m = wMeta(), nx = wNext(), pl = wList('plan'), dn = pl.filter(function (x) { return x.done; }).length, t = realYmd();
+    var end = ymd(new Date(pd(t).getTime() + 6 * 86400000));
+    var wk = pl.filter(function (x) { return !x.done && x.start <= end; });
+    var h = '<div class="wtiles"><div class="card wtile"><span class="small">결혼식까지</span><b class="big">' + esc(wD(m.date)) + '</b><span class="small">' + esc(md(m.date)) + ' ' + esc(m.time || '') + ' · ' + esc(m.venue || '') + '</span></div>' +
+      '<div class="card wtile"><span class="small">다음 마감</span><b class="big">' + (nx ? esc(wD(nx.due)) : '—') + '</b><span class="small">' + (nx ? esc(nx.when) + ' ' + esc(nx.txt) : '남은 마감 없음') + '</span></div>' +
+      '<div class="card wtile"><span class="small">끝낸 일</span><b class="big">' + dn + '<small> / ' + pl.length + '</small></b><span class="small">날짜별 할 일 전체</span></div></div>';
+    h += '<h3 class="wh3">이번 주 할 일</h3>' + (wk.length ? '<div class="card">' + wk.map(function (x) { return wPlanItem(x, true); }).join('') + '</div>' : '<div class="empty">이번 주에 걸린 일이 없어요.</div>');
+    h += '<h3 class="wh3">꼭 지킬 마감</h3>' + wNote('n_due') + '<div class="card">' + wList('due').map(wDue).join('') + '</div>';
+    return h;
+  }
+  function wTodo() {
+    var pl = wList('plan'), areas = [];
+    pl.forEach(function (x) { if (areas.indexOf(x.area) < 0) areas.push(x.area); });
+    var h = wNote('n_plan') + '<div class="wchips">' + [''].concat(areas).map(function (a) {
+      var rs = a ? pl.filter(function (x) { return x.area === a; }) : pl, dn = rs.filter(function (x) { return x.done; }).length;
+      return '<button type="button" class="wdchip" data-warea="' + esc(a) + '" aria-pressed="' + (wArea === a) + '">' + esc(a || '전체') + ' <span>' + dn + '/' + rs.length + '</span></button>';
+    }).join('') + '</div>';
+    var t = realYmd(), cur = '', buf = [];
+    function flush(f) { if (buf.length) { h += '<div class="card wphase' + (f && f.start <= t && f.end >= t ? ' now' : '') + '"><div class="wph"><b>' + esc(f.when) + '</b><span class="small">' + esc(f.dday) + '</span><span>' + esc(f.title) + '</span></div>' + buf.join('') + '</div>'; buf = []; } }
+    var last = null;
+    pl.filter(function (x) { return !wArea || x.area === wArea; }).forEach(function (x) { if (x.phase !== cur) { flush(last); cur = x.phase; } last = x; buf.push(wPlanItem(x, false)); });
+    flush(last);
+    return h;
+  }
+  function wTable(rows, cols, cls) {
+    return '<div class="wtbl' + (cls ? ' ' + cls : '') + '">' + rows.map(function (r) { return '<div class="wtr' + (r._c ? ' ' + r._c : '') + '">' + cols.map(function (c) { return '<span class="' + c[1] + '">' + esc(r[c[0]] == null ? '' : r[c[0]]) + '</span>'; }).join('') + '</div>'; }).join('') + '</div>';
+  }
+  function wDay() {
+    var h = '<h3 class="wh3">당일 시각표</h3>' + wNote('n_day') + '<div class="card">' + wTable(wRows('day').map(function (r) { return Object.assign({ _c: r.main ? 'hi' : '' }, r); }), [['time', 'c-t'], ['who', 'c-w'], ['what', 'c-x']], 'wtime') + '</div>' + wNote('n_day2');
+    h += '<h3 class="wh3">역할표</h3><div class="card">' + wRows('roles').map(function (r) { return '<div class="wrole"><b>' + esc(r.role) + '</b><span>' + esc(r.who) + '</span><div class="small">' + esc(r.when) + (r.note ? ' · ' + esc(r.note) : '') + '</div></div>'; }).join('') + '</div>';
+    h += '<h3 class="wh3">당일 준비물</h3><div class="card">' + wList('pack').map(function (x) { return wChk(x, x.text, ''); }).join('') + '</div>';
+    return h;
+  }
+  function wOrder() {
+    var od = wRows('order'), core = od.filter(function (r) { return r.kind === 'main' || r.kind === 'optional' || r.kind === 'slack'; });
+    var sum = function (k) { return od.filter(function (r) { return r.kind === k; }).reduce(function (a, r) { return a + (r.sec || 0); }, 0); };
+    var lab = function (sec) { var m = Math.floor(sec / 60), s2 = sec % 60; return (m ? m + '분' : '') + (m && s2 ? ' ' : '') + (s2 ? s2 + '초' : ''); };
+    var main = sum('main'), opt = sum('optional'), slack = sum('slack'), tot = main + opt + slack;
+    var GC = { '사회자': 'g1', '부모님': 'g2', '신랑·신부': 'g3', '축가': 'g4', '여유': 'g5' };
+    var h = '<p class="wnote strong">핵심 ' + lab(main) + ' + 편지 ' + lab(opt) + ' + 여유 ' + lab(slack) + ' = ' + lab(tot) + '. 예물 교환은 뺐어요.</p>' + wNote('n_order');
+    h += '<div class="card"><div class="wbar" role="img" aria-label="식순 시간 막대">' + core.map(function (r) { return '<span class="' + (GC[r.group] || 'g5') + (r.kind === 'optional' ? ' opt' : '') + '" style="flex:' + r.sec + '" title="' + esc(r.item + ' · ' + r.dur) + '">' + (r.sec >= 240 ? esc(r.short) : '') + '</span>'; }).join('') + '</div>' +
+      '<div class="wbar-ax"><span>11:00</span><span>11:10</span><span>11:20</span><span>11:30</span></div>' +
+      '<div class="wleg">' + Object.keys(GC).map(function (g) { return '<span><i class="' + GC[g] + '"></i>' + esc(g) + '</span>'; }).join('') + '</div>' +
+      wTable(od.filter(function (r) { return r.kind !== 'option'; }).map(function (r) { return Object.assign({ _c: (r.kind === 'pre' || r.kind === 'slack') ? 'soft' : '' }, r); }), [['start', 'c-t'], ['item', 'c-x'], ['dur', 'c-d']], 'worder') + '</div>';
+    h += wNote('n_slack') + wNote('n_roles');
+    h += '<h3 class="wh3">더 넣고 싶을 때</h3>' + wNote('n_extra') + '<div class="card">' + wTable(od.filter(function (r) { return r.kind === 'option'; }), [['item', 'c-x'], ['dur', 'c-d']], '') + '</div>';
+    h += '<h3 class="wh3">자료별 비교</h3>' + wNote('n_compare') + '<div class="card">' + wRows('compare').filter(function (r) { return r.set === 'order'; }).map(function (r) {
+      return '<div class="wcmp"><b>' + esc(r.label) + '</b><div>제안: <b>' + esc(r.d) + '</b></div><div class="small">엘블레스 일반: ' + esc(r.a) + ' · 주례 없음: ' + esc(r.b) + '</div><div class="small">인터넷 사례: ' + esc(r.c) + '</div></div>';
+    }).join('') + '</div>';
+    h += '<h3 class="wh3">사회자 멘트</h3>' + wNote('n_mc') + '<div class="card">' + wRows('texts').filter(function (r) { return r.set === 'mc'; }).map(function (r) { return '<div class="wline"><b>' + esc(r.cue) + '</b><div>' + esc(r.text) + '</div></div>'; }).join('') + '</div>';
+    return h;
+  }
+  function wScript(set, key) {
+    return '<div class="card">' + wRows('texts').filter(function (r) { return r.set === set; }).map(function (r) {
+      var k = r[key] || ''; return '<div class="wline' + (r.speaker === '함께' ? ' both' : '') + '">' + (k ? '<b>' + esc(k) + '</b>' : '') + '<div>' + esc(r.text) + '</div></div>';
+    }).join('') + '</div>';
+  }
+  function wWords() {
+    var cm = wRows('compare');
+    var h = '<h3 class="wh3">혼인서약</h3>' + wNote('n_vow_intro');
+    h += '<div class="card">' + cm.filter(function (r) { return r.set === 'vow'; }).map(function (r) {
+      return '<div class="wcmp' + (r.pick ? ' pick' : '') + '"><b>' + esc(r.label) + '. ' + esc(r.a) + '</b>' + (r.pick ? ' <span class="chip ok">추천</span>' : '') + '<div class="small">' + esc(r.b) + ' · ' + esc(r.c) + '</div><div class="small">좋은 점: ' + esc(r.d) + ' / 아쉬운 점: ' + esc(r.e) + '</div></div>';
+    }).join('') + '</div>' + wNote('n_vow_web') + wNote('n_vow_pick', 'strong');
+    h += '<h3 class="wh3">낭독용 추천 문안</h3>' + wScript('vow', 'speaker') + wNote('n_vow_read');
+    h += '<h3 class="wh3">성혼선언문</h3>' + wNote('n_decl_intro') + '<div class="card">' + cm.filter(function (r) { return r.set === 'decl'; }).map(function (r) {
+      return '<div class="wcmp' + (r.pick ? ' pick' : '') + '"><b>' + esc(r.label) + '</b>' + (r.pick ? ' <span class="chip ok">추천</span>' : '') + '<div class="small">' + esc(r.a) + ' · ' + esc(r.b) + '</div><div class="small">' + esc(r.c) + '</div></div>';
+    }).join('') + '</div>' + wNote('n_decl_rule') + wNote('n_dad');
+    h += '<h3 class="wh3">' + esc(wNoteTxt('t_declA')) + '</h3>' + wScript('declA', 'cue');
+    h += '<h3 class="wh3">' + esc(wNoteTxt('t_declB')) + '</h3>' + wNote('n_declB') + wScript('declB', 'speaker');
+    h += '<h3 class="wh3">' + esc(wNoteTxt('t_declC')) + '</h3>' + wNote('n_declC') + wScript('declC', 'speaker') + wNote('n_decl_after');
+    return h;
+  }
+  function wVenue() {
+    var h = '<h3 class="wh3">엘블레스에 물어볼 것</h3>' + wNote('n_ask') + '<div class="card">' + wList('ask').map(function (x) { return wChk(x, x.text, ''); }).join('') + '</div>';
+    h += '<h3 class="wh3">엘블레스 규칙 요약</h3>' + wNote('n_parking') + '<div class="card">' + wRows('rules').map(function (r) { return '<div class="wrole"><b>' + esc(r.topic) + '</b><div>' + esc(r.rule) + '</div></div>'; }).join('') + '</div>';
+    return h;
+  }
+  function wSrc() {
+    var h = wNote('n_reviews', 'strong') + wNote('n_search') + '<div class="card">' + wRows('sources').map(function (r) {
+      var u = safeUrl(r.url);
+      return '<div class="wrole"><span class="small">' + esc(r.kind) + (r.date ? ' · ' + esc(r.date) : '') + '</span><div>' + (u ? '<a target="_blank" rel="noopener" href="' + esc(u) + '">' + esc(r.title) + ' ↗</a>' : esc(r.title)) + '</div><div class="small">' + esc(r.site || '') + (r.used ? ' · ' + esc(r.used) : '') + '</div></div>';
+    }).join('') + '</div>';
+    var m = wMeta(), du = m && safeUrl(m.dash);
+    if (du) h += '<p class="small">PC에서 크게 보려면 <a target="_blank" rel="noopener" href="' + esc(du) + '">claude.ai 대시보드 ↗</a></p>';
+    return h;
+  }
+  function wedView() {
+    var h = '<h2 style="margin-top:6px"><span class="em">💍</span>결혼식 준비</h2>';
+    if (!wMeta()) { $('v-wed').innerHTML = h + '<div class="empty">' + (loaded ? '결혼식 자료가 없어요.' : '불러오는 중') + '</div>'; return; }
+    h += '<p class="hint">11/21이 지나면 이 탭과 자료는 자동으로 정리돼요.</p>' + wSegs();
+    h += '<div class="wbody">' + ({ sum: wSum, todo: wTodo, day: wDay, order: wOrder, words: wWords, venue: wVenue, src: wSrc }[wSec] || wSum)() + '</div>';
+    $('v-wed').innerHTML = h;
+  }
+
   /* ---------- 대비책 (파업·시위) ---------- */
   var PST = { '예고 없음': 'mute', '지켜보는 중': 'blue', '예고됨': 'ora', '발생': 'ora', '해소': 'ok' };
   function plActive(p) { return p.status === '예고됨' || p.status === '발생'; }
@@ -1370,8 +1525,8 @@
     document.body.classList.toggle('gated', gate);
     if (gate) { if (lastMode !== mode || !$('v-login').innerHTML) loginView(); lastMode = mode; return; }
     lastMode = mode;
-    pull(); header();
-    if (view === 'home') home(); else if (view === 'days') days(); else if (view === 'map') mapView(); else if (view === 'wallet') wallet(); else if (view === 'discover') discover(); else if (view === 'tasks') tasks(); else if (view === 'pack') packView(); else if (view === 'talk') talkView(); else if (view === 'album') albumView(); else if (view === 'plan') planView(); else settings();
+    pull(); header(); wTab();
+    if (view === 'home') home(); else if (view === 'days') days(); else if (view === 'map') mapView(); else if (view === 'wallet') wallet(); else if (view === 'discover') discover(); else if (view === 'tasks') tasks(); else if (view === 'pack') packView(); else if (view === 'talk') talkView(); else if (view === 'album') albumView(); else if (view === 'plan') planView(); else if (view === 'wed') wedView(); else settings();
     jHydrate(document.getElementById('v-' + view));
     var sig = S.files.map(function (f) { return (f.pages || []).join(','); }).join('|'); if (sig !== wState.sig) walletSync();
   }
@@ -1481,6 +1636,9 @@
     var pl = el.closest('[data-plan]'); if (pl) { askPlan(pl.dataset.plan); return; }
     /* 짐 */
     var pw = el.closest('[data-pwho]'); if (pw) { packWho = pw.dataset.pwho; packEdit = null; packView(); return; }
+    var wc = el.closest('[data-wchk]'); if (wc && !wc.disabled) { wToggle(wc.dataset.wchk); return; }
+    var ws = el.closest('[data-wsec]'); if (ws) { wSec = ws.dataset.wsec; wedView(); window.scrollTo(0, 0); return; }
+    var wa = el.closest('[data-warea]'); if (wa) { wArea = wa.dataset.warea; wedView(); return; }
     var pk = el.closest('[data-pchk]'); if (pk && !pk.disabled) { packToggle(pk.dataset.pchk); return; }
     var pe = el.closest('[data-pedit]'); if (pe && !pe.disabled) { packEdit = pe.dataset.pedit; packView(); var pf = $('packf'); if (pf) pf.scrollIntoView({ block: 'center' }); return; }
     if (el.closest('#pkadd')) { packEdit = 'new'; packView(); var pf2 = $('packf'); if (pf2) { pf2.scrollIntoView({ block: 'center' }); $('pkt').focus(); } return; }
