@@ -1197,7 +1197,7 @@
   }
   /* ---------- 결혼식 탭 (11/21까지, 지나면 자동 정리) ---------- */
   var WSEC = [['sum', '한눈에'], ['todo', '할 일'], ['day', '당일'], ['order', '식순'], ['words', '서약·선언'], ['venue', '엘블레스'], ['src', '출처']];
-  var wSec = 'sum', wArea = '', wCleaned = false;
+  var wSec = 'sum', wArea = '', wMc = 'friend', wCleaned = false;
   function realYmd() { var d = new Date(); return ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate())); }
   function wInfo(id) { return Store.get('wd_info', id); }
   function wMeta() { return wInfo('meta'); }
@@ -1302,10 +1302,17 @@
       wTable(od.filter(function (r) { return r.kind !== 'option'; }).map(function (r) { return Object.assign({ _c: (r.kind === 'pre' || r.kind === 'slack') ? 'soft' : '' }, r); }), [['start', 'c-t'], ['item', 'c-x'], ['dur', 'c-d']], 'worder') + '</div>';
     h += wNote('n_slack') + wNote('n_roles');
     h += '<h3 class="wh3">더 넣고 싶을 때</h3>' + wNote('n_extra') + '<div class="card">' + wTable(od.filter(function (r) { return r.kind === 'option'; }), [['item', 'c-x'], ['dur', 'c-d']], '') + '</div>';
-    h += '<h3 class="wh3">자료별 비교</h3>' + wNote('n_compare') + '<div class="card">' + wRows('compare').filter(function (r) { return r.set === 'order'; }).map(function (r) {
+    h += '<h3 class="wh3">자료별 비교</h3>' + wNote('n_real_order') + wNote('n_compare') + '<div class="card">' + wRows('compare').filter(function (r) { return r.set === 'order'; }).map(function (r) {
       return '<div class="wcmp"><b>' + esc(r.label) + '</b><div>제안: <b>' + esc(r.d) + '</b></div><div class="small">엘블레스 일반: ' + esc(r.a) + ' · 주례 없음: ' + esc(r.b) + '</div><div class="small">인터넷 사례: ' + esc(r.c) + '</div></div>';
     }).join('') + '</div>';
-    h += '<h3 class="wh3">사회자 멘트</h3>' + wNote('n_mc') + '<div class="card">' + wRows('texts').filter(function (r) { return r.set === 'mc'; }).map(function (r) { return '<div class="wline"><b>' + esc(r.cue) + '</b><div>' + esc(r.text) + '</div></div>'; }).join('') + '</div>';
+    var mc = wRows('texts').filter(function (r) { return r.set === 'mc'; }), hasF = mc.some(function (r) { return r.friend; }), mode = hasF ? wMc : 'text';
+    var mcx = wRows('texts').filter(function (r) { return r.set === 'mcx'; });
+    h += '<h3 class="wh3">사회자 멘트</h3>' + wNote('n_mc') + (hasF ? wNote('n_mcf') + '<div class="wsegs wmc" role="tablist" aria-label="멘트 종류"><button type="button" role="tab" data-wmc="friend" aria-selected="' + (mode === 'friend') + '">친구 사회자용</button><button type="button" role="tab" data-wmc="text" aria-selected="' + (mode === 'text') + '">기존 멘트</button></div>' : '') +
+      '<div class="card">' + mc.map(function (r) {
+        var t = mode === 'friend' ? (r.friend || r.text) : r.text;
+        return '<div class="wline"><b>' + esc(r.cue) + '</b><div>' + esc(t) + '</div>' + (mode === 'friend' && r.note ? '<div class="wmemo">📝 ' + esc(r.note) + '</div>' : '') + '</div>';
+      }).join('') + '</div>' + (hasF ? wNote('n_mcf_prep', 'strong') : '');
+    if (mcx.length) h += '<h3 class="wh3">돌발 상황 멘트</h3>' + wNote('n_mcx') + '<div class="card">' + mcx.map(function (r) { return '<div class="wline"><b>' + esc(r.cue) + '</b><div>' + esc(r.friend || r.text) + '</div>' + (r.note ? '<div class="wmemo">📝 ' + esc(r.note) + '</div>' : '') + '</div>'; }).join('') + '</div>';
     return h;
   }
   function wScript(set, key) {
@@ -1320,7 +1327,7 @@
       return '<div class="wcmp' + (r.pick ? ' pick' : '') + '"><b>' + esc(r.label) + '. ' + esc(r.a) + '</b>' + (r.pick ? ' <span class="chip ok">추천</span>' : '') + '<div class="small">' + esc(r.b) + ' · ' + esc(r.c) + '</div><div class="small">좋은 점: ' + esc(r.d) + ' / 아쉬운 점: ' + esc(r.e) + '</div></div>';
     }).join('') + '</div>' + wNote('n_vow_web') + wNote('n_vow_pick', 'strong');
     h += '<h3 class="wh3">낭독용 추천 문안</h3>' + wScript('vow', 'speaker') + wNote('n_vow_read');
-    h += '<h3 class="wh3">성혼선언문</h3>' + wNote('n_decl_intro') + '<div class="card">' + cm.filter(function (r) { return r.set === 'decl'; }).map(function (r) {
+    h += '<h3 class="wh3">성혼선언문</h3>' + wNote('n_decl_intro') + wNote('n_real_decl') + '<div class="card">' + cm.filter(function (r) { return r.set === 'decl'; }).map(function (r) {
       return '<div class="wcmp' + (r.pick ? ' pick' : '') + '"><b>' + esc(r.label) + '</b>' + (r.pick ? ' <span class="chip ok">추천</span>' : '') + '<div class="small">' + esc(r.a) + ' · ' + esc(r.b) + '</div><div class="small">' + esc(r.c) + '</div></div>';
     }).join('') + '</div>' + wNote('n_decl_rule') + wNote('n_dad');
     h += '<h3 class="wh3">' + esc(wNoteTxt('t_declA')) + '</h3>' + wScript('declA', 'cue');
@@ -1639,6 +1646,7 @@
     var wc = el.closest('[data-wchk]'); if (wc && !wc.disabled) { wToggle(wc.dataset.wchk); return; }
     var ws = el.closest('[data-wsec]'); if (ws) { wSec = ws.dataset.wsec; wedView(); window.scrollTo(0, 0); return; }
     var wa = el.closest('[data-warea]'); if (wa) { wArea = wa.dataset.warea; wedView(); return; }
+    var wm = el.closest('[data-wmc]'); if (wm) { wMc = wm.dataset.wmc; wedView(); return; }
     var pk = el.closest('[data-pchk]'); if (pk && !pk.disabled) { packToggle(pk.dataset.pchk); return; }
     var pe = el.closest('[data-pedit]'); if (pe && !pe.disabled) { packEdit = pe.dataset.pedit; packView(); var pf = $('packf'); if (pf) pf.scrollIntoView({ block: 'center' }); return; }
     if (el.closest('#pkadd')) { packEdit = 'new'; packView(); var pf2 = $('packf'); if (pf2) { pf2.scrollIntoView({ block: 'center' }); $('pkt').focus(); } return; }
