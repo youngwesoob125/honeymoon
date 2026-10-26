@@ -24,6 +24,18 @@
   function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function md(s) { var d = pd(s); return d ? (d.getMonth() + 1) + '/' + d.getDate() + ' (' + DOW[d.getDay()] + ')' : ''; }
   function diff(s) { var d = pd(s); return d ? Math.round((d - today()) / 86400000) : null; }
+  /* 할 일: 진짜 마감과 바로 가기 링크 */
+  function actUrl(u) { u = String(u || ''); return /^https:\/\//i.test(u) || /^tel:\+?[0-9-]+$/.test(u) ? u : ''; }
+  function actLinks(ls) {
+    if (!ls || !ls.length) return '';
+    return '<span class="tlinks">' + ls.map(function (l) { var u = actUrl(l && l.u); if (!u) return ''; var tel = /^tel:/.test(u); return '<a class="tlink" href="' + esc(u) + '"' + (tel ? '' : ' target="_blank" rel="noopener"') + '>' + (tel ? '📞 ' : '') + esc(l.t || '바로 가기') + (tel ? '' : ' ↗') + '</a>'; }).join('') + '</span>';
+  }
+  function dlInfo(x, left) {
+    if (!x.deadline) return '<span class="tdl mute">진짜 마감은 매일 점검 때 채워요</span>';
+    var k = left(x.deadline), c = k < 0 ? 'late' : k <= 7 ? 'soon' : 'ok';
+    var at = '진짜 마감 ' + esc(md(x.deadline)) + (x.dlTime ? ' ' + esc(x.dlTime) : '');
+    return '<span class="tdl ' + c + '">' + (k < 0 ? at + '도 <b>' + (-k) + '일 지남</b>' : at + ' · <b>' + (k === 0 ? '오늘 마감' : 'D-' + k) + '</b>') + '</span>' + (x.dlWhy ? '<span class="dlwhy">' + esc(x.dlWhy) + '</span>' : '');
+  }
   function hm(iso) { var d = new Date(iso); if (isNaN(d)) return ''; return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
   function gmap(q) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q); }
   function toast(m) { var t = $('toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toast._t); toast._t = setTimeout(function () { t.style.display = 'none'; }, 3600); }
@@ -373,11 +385,11 @@
   function sortedTasks() { return S.tasks.slice().sort(function (a, b) { return (a.due || '9') < (b.due || '9') ? -1 : (a.due || '9') > (b.due || '9') ? 1 : (a.order || 0) - (b.order || 0); }); }
   function taskRow(t) {
     if (taskEdit === t.id) return taskForm(t);
-    var n = diff(t.due), cls = '', txt = t.due ? md(t.due) + '까지' : '';
-    if (!t.done && n !== null) { if (n < 0) { cls = 'late'; txt += ' (지남)'; } else if (n <= 7) { cls = 'soon'; txt += n === 0 ? ' (오늘)' : ' (' + n + '일 남음)'; } }
+    var n = diff(t.due), cls = '', txt = t.due ? md(t.due) + '까지' : '', late = !t.done && n !== null && n < 0;
+    if (!t.done && n !== null) { if (late) { cls = 'late'; txt = '권장 ' + md(t.due) + ' 지남'; } else if (n <= 7) { cls = 'soon'; txt += n === 0 ? ' (오늘)' : ' (' + n + '일 남음)'; } }
     var who = t.done ? (t.doneBy ? whoName(t.doneBy) + ' 체크' : '완료') : '';
     return '<div class="task' + (t.done ? ' done' : '') + '"><button class="chk" role="checkbox" aria-checked="' + (t.done ? 'true' : 'false') + '" aria-label="' + esc(t.title) + '" data-tid="' + esc(t.id) + '"' + (canEdit() ? '' : ' disabled') + '></button>' +
-      '<button type="button" class="tt" data-tedit="' + esc(t.id) + '"' + (canEdit() ? '' : ' disabled') + '>' + esc(t.title) + '</button><div class="tm">' + (txt ? '<span class="due ' + cls + '">' + esc(txt) + '</span>' : '') + (t.passport ? '<span class="pp">🛂 새 여권번호</span>' : '') + (t.note ? '<span>' + esc(t.note) + '</span>' : '') + (who ? '<span class="who">' + esc(who) + '</span>' : '') + '</div></div>';
+      '<button type="button" class="tt" data-tedit="' + esc(t.id) + '"' + (canEdit() ? '' : ' disabled') + '>' + esc(t.title) + '</button><div class="tm">' + (txt ? '<span class="due ' + cls + '">' + esc(txt) + '</span>' : '') + (late ? dlInfo(t, diff) : '') + (t.done ? '' : actLinks(t.links)) + (t.passport ? '<span class="pp">🛂 새 여권번호</span>' : '') + (t.note ? '<span>' + esc(t.note) + '</span>' : '') + (who ? '<span class="who">' + esc(who) + '</span>' : '') + '</div></div>';
   }
   function taskForm(t) {
     return '<form class="edit" id="taskf" data-id="' + esc(t.id) + '"><b class="disp">할 일 고치기</b>' +
@@ -1249,11 +1261,11 @@
   }
   function wDue(x) {
     var n = wLeft(x.due), cls = n < 0 ? 'late' : n <= 7 ? 'soon' : '';
-    return wChk(x, x.text, '<span class="due ' + cls + '">' + esc(x.when) + ' · ' + esc(wD(x.due)) + '</span><span class="chip ' + (x.req === '필수' ? 'ora' : 'mute') + '">' + esc(x.req) + '</span>' + (x.tip ? '<span class="wtip">' + esc(x.tip) + '</span>' : '') + '<span class="wrule">' + esc(x.rule) + '</span>');
+    return wChk(x, x.text, '<span class="due ' + cls + '">' + esc(x.when) + ' · ' + esc(wD(x.due)) + '</span><span class="chip ' + (x.req === '필수' ? 'ora' : 'mute') + '">' + esc(x.req) + '</span>' + (x.tip ? '<span class="wtip">' + esc(x.tip) + '</span>' : '') + '<span class="wrule">' + esc(x.rule) + '</span>' + (x.done ? '' : actLinks(x.links)));
   }
   function wPlanItem(x, showWhen) {
     var late = !x.done && x.end < realYmd();
-    return wChk(x, x.text, (showWhen ? '<span class="due' + (late ? ' late' : '') + '">' + esc(x.when) + (late ? ' (지남)' : '') + '</span>' : (late ? '<span class="due late">지남</span>' : '')) + '<span>' + esc(x.area) + '</span>');
+    return wChk(x, x.text, (late ? '<span class="due late">권장 ' + esc(x.when) + ' 지남</span>' : showWhen ? '<span class="due">' + esc(x.when) + '</span>' : '') + '<span>' + esc(x.area) + '</span>' + (late ? dlInfo(x, wLeft) : '') + (x.done ? '' : actLinks(x.links)));
   }
   function wSum() {
     var m = wMeta(), nx = wNext(), pl = wList('plan'), dn = pl.filter(function (x) { return x.done; }).length, t = realYmd();
