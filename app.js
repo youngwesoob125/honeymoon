@@ -1298,7 +1298,7 @@
   function wDay() {
     var h = '<h3 class="wh3">당일 시각표</h3>' + wNote('n_day') + '<div class="card">' + wTable(wRows('day').map(function (r) { return Object.assign({ _c: r.main ? 'hi' : '' }, r); }), [['time', 'c-t'], ['who', 'c-w'], ['what', 'c-x']], 'wtime') + '</div>' + wNote('n_day2');
     h += '<h3 class="wh3">역할표</h3><div class="card">' + wRows('roles').map(function (r) { return '<div class="wrole"><b>' + esc(r.role) + '</b><span>' + esc(r.who) + '</span><div class="small">' + esc(r.when) + (r.note ? ' · ' + esc(r.note) : '') + '</div></div>'; }).join('') + '</div>';
-    h += '<h3 class="wh3">당일 준비물</h3><div class="card">' + wList('pack').map(function (x) { return wChk(x, x.text, ''); }).join('') + '</div>';
+    h += '<h3 class="wh3">당일 준비물</h3><div class="card">' + wList('pack').map(function (x) { return wChk(x, x.text, x.done ? '' : actLinks(x.links)); }).join('') + '</div>';
     return h;
   }
   function wOrder() {
@@ -1319,12 +1319,13 @@
     }).join('') + '</div>';
     var mc = wRows('texts').filter(function (r) { return r.set === 'mc'; }), hasF = mc.some(function (r) { return r.friend; }), mode = hasF ? wMc : 'text';
     var mcx = wRows('texts').filter(function (r) { return r.set === 'mcx'; });
-    h += '<h3 class="wh3">사회자 멘트</h3>' + wNote('n_mc') + (hasF ? wNote('n_mcf') + '<div class="wsegs wmc" role="tablist" aria-label="멘트 종류"><button type="button" role="tab" data-wmc="friend" aria-selected="' + (mode === 'friend') + '">친구 사회자용</button><button type="button" role="tab" data-wmc="text" aria-selected="' + (mode === 'text') + '">기존 멘트</button></div>' : '') +
-      '<div class="card">' + mc.map(function (r) {
+    h += '<h3 class="wh3">사회자 멘트</h3>' + wNote('n_mc') + (hasF ? wNote('n_mcf') + '<div class="wsegs wmc" role="tablist" aria-label="멘트 종류"><button type="button" role="tab" data-wmc="friend" aria-selected="' + (mode === 'friend') + '">추천 대본</button><button type="button" role="tab" data-wmc="text" aria-selected="' + (mode === 'text') + '">기존 멘트</button></div>' : '') +
+      (function () { var m = wMeta(), u = m && safeUrl(m.mcdoc); return u ? '<p class="small wdoc"><a target="_blank" rel="noopener" href="' + esc(u) + '">출력용 사회자 대본(문서) 열기 ↗</a></p>' : ''; })() +
+      '<div class="card">' + mc.filter(function (r) { return mode === 'friend' ? (r.friend || r.text) : r.text; }).map(function (r) {
         var t = mode === 'friend' ? (r.friend || r.text) : r.text;
-        return '<div class="wline"><b>' + esc(r.cue) + '</b><div>' + esc(t) + '</div>' + (mode === 'friend' && r.note ? '<div class="wmemo">📝 ' + esc(r.note) + '</div>' : '') + '</div>';
+        return '<div class="wline"><b>' + esc(r.cue) + '</b><div class="wtx">' + esc(t) + '</div>' + (mode === 'friend' && r.note ? '<div class="wmemo">📝 ' + esc(r.note) + '</div>' : '') + '</div>';
       }).join('') + '</div>' + (hasF ? wNote('n_mcf_prep', 'strong') : '');
-    if (mcx.length) h += '<h3 class="wh3">돌발 상황 멘트</h3>' + wNote('n_mcx') + '<div class="card">' + mcx.map(function (r) { return '<div class="wline"><b>' + esc(r.cue) + '</b><div>' + esc(r.friend || r.text) + '</div>' + (r.note ? '<div class="wmemo">📝 ' + esc(r.note) + '</div>' : '') + '</div>'; }).join('') + '</div>';
+    if (mcx.length) h += '<h3 class="wh3">돌발 상황 멘트</h3>' + wNote('n_mcx') + '<div class="card">' + mcx.map(function (r) { return '<div class="wline"><b>' + esc(r.cue) + '</b><div class="wtx">' + esc(r.friend || r.text) + '</div>' + (r.note ? '<div class="wmemo">📝 ' + esc(r.note) + '</div>' : '') + '</div>'; }).join('') + '</div>';
     return h;
   }
   function wScript(set, key) {
